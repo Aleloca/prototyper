@@ -10,7 +10,8 @@
     "build": "electron-vite build",
     "start": "electron-vite preview",
     "typecheck": "tsc -p tsconfig.json",
-    "dist": "electron-vite build && node --check out/main/index.js && electron-builder --mac --publish never"
+    "dist": "electron-vite build && node --check out/main/index.js && electron-builder --mac --publish never",
+    "dist:release": "electron-vite build && node --check out/main/index.js && electron-builder --mac --publish never -c.mac.notarize=true"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.5",

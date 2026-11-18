@@ -21,9 +21,14 @@ mac:
   target:
     - target: dmg
       arch: [arm64]
-  # Unsigned: users open it the first time with right-click → Open (see README).
-  identity: null
-  hardenedRuntime: false
+  # Signed automatically when a "Developer ID Application" certificate is in the keychain
+  # (pick one with CSC_NAME); otherwise the build is unsigned. Notarization is opt-in:
+  # see `pnpm dist:release` and docs/releasing.md.
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  notarize: false
   extendInfo:
     NSAppleEventsUsageDescription: Prototyper opens a Terminal window to continue a demo's Claude Code session.
 dmg:
