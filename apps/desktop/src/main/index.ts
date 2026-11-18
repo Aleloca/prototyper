@@ -16,11 +16,11 @@ import { SecretStore } from "./secrets";
 import { ShareClient } from "./share";
 import { SettingsStore } from "./settings";
 
-// The kit's templates ship next to its package.json (in M6: copied into the app resources).
-process.env.PROTOTYPER_TEMPLATES_DIR ??= join(
-  dirname(createRequire(import.meta.url).resolve("@prototyper/prototype-kit/package.json")),
-  "templates",
-);
+// The kit's templates: in the packaged app they are copied into Resources/templates; in development
+// they sit next to the kit's package.json.
+process.env.PROTOTYPER_TEMPLATES_DIR ??= app.isPackaged
+  ? join(process.resourcesPath, "templates")
+  : join(dirname(createRequire(import.meta.url).resolve("@prototyper/prototype-kit/package.json")), "templates");
 
 // Dev/testing: isolate settings and library from the real ones.
 if (process.env.PROTOTYPER_USER_DATA) app.setPath("userData", process.env.PROTOTYPER_USER_DATA);
@@ -288,6 +288,11 @@ async function devSnapshot(win: BrowserWindow, path: string): Promise<void> {
     const result: unknown = await win.webContents.executeJavaScript(process.env.PROTOTYPER_SNAPSHOT_JS);
     if (result !== undefined) console.log("[snapshot]", JSON.stringify(result));
     await new Promise((r) => setTimeout(r, Number(process.env.PROTOTYPER_SNAPSHOT_WAIT ?? 2500)));
+  }
+  if (process.env.PROTOTYPER_SNAPSHOT_FOCUS) {
+    app.focus({ steal: true });
+    win.focus();
+    await new Promise((r) => setTimeout(r, 1500));
   }
   win.webContents.invalidate();
   await new Promise((r) => setTimeout(r, 300));

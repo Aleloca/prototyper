@@ -1,4 +1,5 @@
 import { cp, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { join, relative, sep } from "node:path";
 import { compile, optimize } from "@tailwindcss/node";
 import { Scanner } from "@tailwindcss/oxide";
@@ -14,10 +15,28 @@ export async function lintSite(srcDir: string): Promise<LintResult & { report: s
   return { ...result, report: formatIssues(result.issues) };
 }
 
+const localRequire = createRequire(import.meta.url);
+
+/**
+ * `@import "tailwindcss"` is resolved from the demo folder, which has no node_modules:
+ * point it (and `tailwindcss/...` imports) to the copy bundled with the app.
+ */
+async function resolveTailwind(id: string): Promise<string | undefined> {
+  if (id === "tailwindcss") return localRequire.resolve("tailwindcss/index.css");
+  if (id.startsWith("tailwindcss/")) {
+    try {
+      return localRequire.resolve(id.endsWith(".css") ? id : `${id}.css`);
+    } catch {
+      return undefined;
+    }
+  }
+  return undefined;
+}
+
 /** Compile `src/styles.css` with Tailwind v4, scanning `srcDir` for class candidates. */
 export async function compileCss(srcDir: string): Promise<string> {
   const input = await readFile(join(srcDir, CSS_ENTRY), "utf8").catch(() => '@import "tailwindcss";');
-  const compiler = await compile(input, { base: srcDir, onDependency: () => {} });
+  const compiler = await compile(input, { base: srcDir, onDependency: () => {}, customCssResolver: resolveTailwind });
 
   const sources =
     compiler.root === "none"

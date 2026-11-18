@@ -1,6 +1,6 @@
 # Prototyper — Design & Architecture
 
-> Status: approved draft · 2026-11-18
+> Status: implemented (v0.1.0) · 2026-11-18
 
 Prototyper is a macOS desktop app (Electron) for building landing pages and small multi-page demo sites with Claude Code, collecting client feedback directly on the demo, and iterating version by version until the client approves. The approved demo is then exported as the starting point for the real project.
 
@@ -79,7 +79,7 @@ Why this matters: client edits are **applied deterministically**. The app parses
 
 ## 4. Desktop app
 
-**Stack**: Electron, electron-vite, React and TypeScript. macOS only. UI in English and Italian (i18n).
+**Stack**: Electron, electron-vite, React and TypeScript. macOS only (Apple Silicon builds). UI in English and Italian.
 
 ### 4.1 Library on disk
 

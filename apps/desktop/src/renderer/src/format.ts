@@ -1,12 +1,14 @@
-export function timeAgo(iso: string): string {
+import type { T } from "./i18n";
+
+export function timeAgo(iso: string, t: T = (s, v) => s.replace(/\{(\w+)\}/g, (_, k: string) => String(v?.[k] ?? ""))): string {
   const s = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 60) return "just now";
+  if (s < 60) return t("just now");
   const m = Math.round(s / 60);
-  if (m < 60) return `${m} min ago`;
+  if (m < 60) return t("{n} min ago", { n: m });
   const h = Math.round(m / 60);
-  if (h < 24) return `${h} h ago`;
+  if (h < 24) return t("{n} h ago", { n: h });
   const d = Math.round(h / 24);
-  if (d < 30) return `${d} d ago`;
+  if (d < 30) return t("{n} d ago", { n: d });
   return new Date(iso).toLocaleDateString();
 }
 

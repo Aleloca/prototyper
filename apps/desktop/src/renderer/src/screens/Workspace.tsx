@@ -7,6 +7,7 @@ import { errorMessage, timeAgo } from "../format";
 import { ExportDialog } from "./ExportDialog";
 import { FeedbackDialog } from "./FeedbackDialog";
 import { ShareDialog } from "./ShareDialog";
+import { useT } from "../i18n";
 
 type Device = "desktop" | "tablet" | "mobile";
 const DEVICE_WIDTH: Record<Device, string> = { desktop: "100%", tablet: "820px", mobile: "390px" };
@@ -15,6 +16,7 @@ type Tab = "claude" | "references" | "versions" | "checks";
 const sameRef = (a: DemoRef, b: DemoRef) => a.client === b.client && a.demo === b.demo;
 
 export function Workspace(props: { demoRef: DemoRef; autostart?: GenerateOptions; onBack: () => void }) {
+  const t = useT();
   const { demoRef } = props;
   const [detail, setDetail] = useState<DemoDetail | undefined>();
   const [events, setEvents] = useState<RunEvent[]>([]);
@@ -62,7 +64,7 @@ export function Workspace(props: { demoRef: DemoRef; autostart?: GenerateOptions
   const run = async (fn: () => Promise<void>) => {
     setError(undefined);
     try {
-      setPhase("Starting Claude…");
+      setPhase(t("Starting Claude…"));
       await fn();
       reload();
     } catch (e) {
@@ -80,14 +82,14 @@ export function Workspace(props: { demoRef: DemoRef; autostart?: GenerateOptions
     <div className="flex h-full flex-col">
       <header className="drag flex h-13 shrink-0 items-center gap-3 border-b border-line bg-panel pr-3 pl-24">
         <button className="no-drag btn btn-ghost -ml-2 px-2" onClick={props.onBack} aria-label="Back to library">
-          ← Library
+          {t("← Library")}
         </button>
         <div className="flex min-w-0 items-baseline gap-2">
           <span className="truncate text-muted">{detail.clientName}</span>
           <span className="text-faint">/</span>
           <span className="truncate font-semibold">{meta.name}</span>
           {version && <span className="text-faint">v{version.number}</span>}
-          {detail.unsavedChanges && version && <span className="text-[12px] text-warn">· unsaved changes</span>}
+          {detail.unsavedChanges && version && <span className="text-[12px] text-warn">· {t("unsaved changes")}</span>}
         </div>
 
         <div className="no-drag mx-auto flex rounded-md border border-line p-0.5" role="group" aria-label="Preview size">
@@ -96,31 +98,31 @@ export function Workspace(props: { demoRef: DemoRef; autostart?: GenerateOptions
               key={d}
               onClick={() => setDevice(d)}
               aria-pressed={device === d}
-              className={`rounded px-2.5 py-1 text-[12px] capitalize ${device === d ? "bg-ink text-white" : "text-muted hover:bg-black/5"}`}
+              className={`rounded px-2.5 py-1 text-[12px] ${device === d ? "bg-ink text-white" : "text-muted hover:bg-black/5"}`}
             >
-              {d}
+              {t(d[0]!.toUpperCase() + d.slice(1))}
             </button>
           ))}
         </div>
 
         <div className="no-drag flex items-center gap-1.5">
           <button className="btn btn-ghost" onClick={() => void api.demo.openInBrowser(demoRef)} disabled={!detail.hasPages}>
-            Browser
+            {t("Browser")}
           </button>
           <button className="btn btn-ghost" onClick={() => void api.demo.openFolder(demoRef)}>
-            Folder
+            {t("Folder")}
           </button>
-          <button className="btn btn-ghost" onClick={() => void api.demo.openTerminal(demoRef)} title="Continue this demo's Claude session in Terminal">
-            Terminal
+          <button className="btn btn-ghost" onClick={() => void api.demo.openTerminal(demoRef)} title={t("Continue this demo's Claude session in Terminal")}>
+            {t("Terminal")}
           </button>
           <button className="btn btn-ghost" disabled={!detail.hasPages || running} onClick={() => setExporting(true)}>
-            Export
+            {t("Export")}
           </button>
           <button className="btn" disabled={!detail.unsavedChanges || running} onClick={() => setSaving(true)}>
-            Save version
+            {t("Save version")}
           </button>
           <button className="btn btn-primary" disabled={!version || running} onClick={() => setSharing(true)}>
-            {meta.share ? "Shared" : "Share"}
+            {t(meta.share ? "Shared" : "Share")}
           </button>
         </div>
       </header>
@@ -145,25 +147,25 @@ export function Workspace(props: { demoRef: DemoRef; autostart?: GenerateOptions
 
         <aside className="flex w-[400px] shrink-0 flex-col border-l border-line bg-panel">
           <nav className="flex gap-1 border-b border-line px-3 pt-2" role="tablist">
-            <TabButton active={tab === "claude"} onClick={() => setTab("claude")}>Claude</TabButton>
-            <TabButton active={tab === "references"} onClick={() => setTab("references")}>References</TabButton>
+            <TabButton active={tab === "claude"} onClick={() => setTab("claude")}>{t("Claude")}</TabButton>
+            <TabButton active={tab === "references"} onClick={() => setTab("references")}>{t("References")}</TabButton>
             <TabButton active={tab === "versions"} onClick={() => setTab("versions")}>
-              Versions {meta.versions.length > 0 && <span className="text-faint">{meta.versions.length}</span>}
+              {t("Versions")} {meta.versions.length > 0 && <span className="text-faint">{meta.versions.length}</span>}
             </TabButton>
             <TabButton active={tab === "checks"} onClick={() => setTab("checks")}>
-              Checks {detail.lint && detail.lint.errors > 0 && <span className="text-danger">{detail.lint.errors}</span>}
+              {t("Checks")} {detail.lint && detail.lint.errors > 0 && <span className="text-danger">{detail.lint.errors}</span>}
             </TabButton>
           </nav>
           {meta.lastRound && meta.lastRound.status !== "imported" && (meta.lastRound.edits > 0 || meta.lastRound.comments > 0) && (
             <div className={`mx-3 mt-3 rounded-lg border px-3 py-2.5 ${meta.lastRound.status === "submitted" ? "border-warn/40 bg-warn/10" : "border-line bg-canvas"}`}>
               <p className="font-medium">
-                {meta.lastRound.status === "submitted" ? `${meta.lastRound.submittedBy ?? "The client"} sent feedback on v${meta.lastRound.versionNumber}` : `The client is reviewing v${meta.lastRound.versionNumber}`}
+                {meta.lastRound.status === "submitted" ? t("{name} sent feedback on v{n}", { name: meta.lastRound.submittedBy ?? t("The client"), n: meta.lastRound.versionNumber ?? "" }) : t("The client is reviewing v{n}", { n: meta.lastRound.versionNumber ?? "" })}
               </p>
               <p className="text-muted">
-                {meta.lastRound.edits} edit{meta.lastRound.edits === 1 ? "" : "s"} · {meta.lastRound.comments} note{meta.lastRound.comments === 1 ? "" : "s"}
+                {t(meta.lastRound.edits === 1 ? "{n} edit" : "{n} edits", { n: meta.lastRound.edits })} · {t(meta.lastRound.comments === 1 ? "{n} note" : "{n} notes", { n: meta.lastRound.comments })}
               </p>
               <button className="btn btn-primary mt-2" disabled={running} onClick={() => setReviewing(true)}>
-                Review feedback
+                {t("Review feedback")}
               </button>
             </div>
           )}
@@ -193,7 +195,7 @@ export function Workspace(props: { demoRef: DemoRef; autostart?: GenerateOptions
           onStarted={() => {
             setExporting(false);
             setTab("claude");
-            setPhase("Exporting…");
+            setPhase(t("Exporting…"));
           }}
         />
       )}
@@ -205,7 +207,7 @@ export function Workspace(props: { demoRef: DemoRef; autostart?: GenerateOptions
           onStarted={() => {
             setReviewing(false);
             setTab("claude");
-            setPhase("Applying client feedback…");
+            setPhase(t("Applying client feedback…"));
           }}
         />
       )}
@@ -253,25 +255,26 @@ function TabButton(props: { active: boolean; onClick: () => void; children: Reac
 }
 
 function EmptyPreview(props: { running: boolean; pendingStructure: boolean; onGenerate: () => void }) {
+  const t = useT();
   return (
     <div className="m-auto max-w-sm text-center">
       {props.running ? (
         <>
           <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-line border-t-accent" />
-          <p className="font-medium">Claude is building the first version</p>
-          <p className="mt-1 text-muted">This usually takes a few minutes. Follow along in the panel on the right.</p>
+          <p className="font-medium">{t("Claude is building the first version")}</p>
+          <p className="mt-1 text-muted">{t("This usually takes a few minutes. Follow along in the panel on the right.")}</p>
         </>
       ) : props.pendingStructure ? (
         <>
-          <p className="font-medium">Structure ready for review</p>
-          <p className="mt-1 text-muted">Approve it in the Claude panel, with any changes, to build the pages.</p>
+          <p className="font-medium">{t("Structure ready for review")}</p>
+          <p className="mt-1 text-muted">{t("Approve it in the Claude panel, with any changes, to build the pages.")}</p>
         </>
       ) : (
         <>
-          <p className="font-medium">No pages yet</p>
-          <p className="mt-1 text-muted">Generate the site from the brief, or describe what you want in the Claude panel.</p>
+          <p className="font-medium">{t("No pages yet")}</p>
+          <p className="mt-1 text-muted">{t("Generate the site from the brief, or describe what you want in the Claude panel.")}</p>
           <button className="btn btn-primary mt-4" onClick={props.onGenerate}>
-            Generate site
+            {t("Generate site")}
           </button>
         </>
       )}
@@ -289,6 +292,7 @@ function ClaudePanel(props: {
   onApprove: (feedback: string) => Promise<void>;
   onCancel: () => void;
 }) {
+  const t = useT();
   const [text, setText] = useState("");
   const [feedback, setFeedback] = useState("");
   const bottom = useRef<HTMLDivElement>(null);
@@ -306,7 +310,7 @@ function ClaudePanel(props: {
     <>
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
         {props.events.length === 0 && !props.running && (
-          <p className="mt-6 text-center text-muted">Ask Claude for changes: "make the hero more minimal", "add a pricing section"…</p>
+          <p className="mt-6 text-center text-muted">{t('Ask Claude for changes: "make the hero more minimal", "add a pricing section"…')}</p>
         )}
         <div className="flex flex-col gap-2.5">
           {props.events.map((e, i) => (
@@ -315,15 +319,15 @@ function ClaudePanel(props: {
         </div>
         {props.pendingStructure && !props.running && (
           <div className="mt-3 rounded-lg border border-accent/30 bg-accent-soft/60 p-3">
-            <p className="mb-2 font-medium">Approve this structure?</p>
+            <p className="mb-2 font-medium">{t("Approve this structure?")}</p>
             <textarea
               className="input min-h-20 resize-y"
-              placeholder="Optional changes: add a FAQ to Home, merge About and Team…"
+              placeholder={t("Optional changes: add a FAQ to Home, merge About and Team…")}
               value={feedback}
               onChange={(e) => setFeedback(e.target.value)}
             />
             <button className="btn btn-primary mt-2 w-full justify-center" onClick={() => void props.onApprove(feedback)}>
-              Approve and build pages
+              {t("Approve and build pages")}
             </button>
           </div>
         )}
@@ -340,7 +344,7 @@ function ClaudePanel(props: {
       <div className="border-t border-line p-3">
         <textarea
           className="input min-h-[72px] resize-none"
-          placeholder={props.running ? "Claude is working…" : "Describe a change…  (⌘↵ to send)"}
+          placeholder={t(props.running ? "Claude is working…" : "Describe a change…  (⌘↵ to send)")}
           value={text}
           disabled={props.running}
           onChange={(e) => setText(e.target.value)}
@@ -354,11 +358,11 @@ function ClaudePanel(props: {
         <div className="mt-2 flex justify-end gap-2">
           {props.running ? (
             <button className="btn" onClick={props.onCancel}>
-              Stop
+              {t("Stop")}
             </button>
           ) : (
             <button className="btn btn-primary" disabled={!text.trim()} onClick={send}>
-              Send
+              {t("Send")}
             </button>
           )}
         </div>
@@ -368,6 +372,7 @@ function ClaudePanel(props: {
 }
 
 function EventItem({ event: e }: { event: RunEvent }) {
+  const t = useT();
   switch (e.type) {
     case "user":
       return <div className="ml-8 rounded-lg bg-accent-soft px-3 py-2 whitespace-pre-wrap">{e.text}</div>;
@@ -382,41 +387,41 @@ function EventItem({ event: e }: { event: RunEvent }) {
     case "structure":
       return (
         <div className="rounded-lg border border-line bg-canvas px-3 py-2">
-          <p className="mb-1 text-[12px] font-medium text-muted">Proposed structure</p>
+          <p className="mb-1 text-[12px] font-medium text-muted">{t("Proposed structure")}</p>
           <Markdownish text={e.text} />
         </div>
       );
     case "result":
       return (
         <div className={`text-[12px] ${e.ok ? "text-faint" : "text-danger"}`}>
-          {e.ok ? "Done" : `Failed: ${e.text}`}
+          {e.ok ? t("Done") : t("Failed: {text}", { text: e.text })}
           {e.durationMs !== undefined && ` · ${Math.round(e.durationMs / 1000)}s`}
           {e.costUsd !== undefined && ` · $${e.costUsd.toFixed(2)}`}
         </div>
       );
     case "lint":
       return e.errors + e.warnings === 0 ? (
-        <div className="text-[12px] text-ok">✓ Content contract OK</div>
+        <div className="text-[12px] text-ok">{t("✓ Content contract OK")}</div>
       ) : (
         <details className="text-[12px]">
           <summary className={e.errors ? "text-danger" : "text-warn"}>
-            Checks: {e.errors} error(s), {e.warnings} warning(s)
+            {t("Checks: {e} error(s), {w} warning(s)", { e: e.errors, w: e.warnings })}
           </summary>
           <pre className="mt-1 overflow-x-auto font-mono text-[11px] whitespace-pre-wrap text-muted">{e.report}</pre>
         </details>
       );
     case "version":
-      return <div className="text-[12px] font-medium text-ok">Saved as v{e.number}</div>;
+      return <div className="text-[12px] font-medium text-ok">{t("Saved as v{n}", { n: e.number })}</div>;
     case "feedback":
       return (
         <div className="text-[12px] font-medium text-accent">
-          Imported client feedback on v{e.version}: {e.edits} edit(s) applied, {e.notes} note(s) for Claude
+          {t("Imported client feedback on v{v}: {e} edit(s) applied, {n} note(s) for Claude", { v: e.version, e: e.edits, n: e.notes })}
         </div>
       );
     case "exported":
-      return <div className="text-[12px] font-medium text-ok">Exported the {e.kind === "site" ? "static site" : "handoff pack"}: {e.path}</div>;
+      return <div className="text-[12px] font-medium text-ok">{t(e.kind === "site" ? "Exported the static site: {path}" : "Exported the handoff pack: {path}", { path: e.path })}</div>;
     case "published":
-      return <div className="text-[12px] font-medium text-accent">Published v{e.version} for client review</div>;
+      return <div className="text-[12px] font-medium text-accent">{t("Published v{n} for client review", { n: e.version })}</div>;
     case "error":
       return <div className="text-danger">{e.message}</div>;
     case "done":
@@ -427,18 +432,19 @@ function EventItem({ event: e }: { event: RunEvent }) {
 }
 
 function VersionsPanel({ detail }: { detail: DemoDetail }) {
+  const t = useT();
   const versions = [...detail.meta.versions].reverse();
   return (
     <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
       {versions.length === 0 ? (
-        <p className="mt-6 text-center text-muted">No versions yet. The first one is saved when the site is generated.</p>
+        <p className="mt-6 text-center text-muted">{t("No versions yet. The first one is saved when the site is generated.")}</p>
       ) : (
         <ol className="flex flex-col gap-3">
           {versions.map((v) => (
             <li key={v.tag} className="rounded-lg border border-line px-3 py-2">
               <div className="flex items-baseline gap-2">
                 <span className="font-semibold">v{v.number}</span>
-                <span className="ml-auto text-[12px] text-faint">{timeAgo(v.createdAt)}</span>
+                <span className="ml-auto text-[12px] text-faint">{timeAgo(v.createdAt, t)}</span>
               </div>
               <p className="mt-0.5 text-muted">{v.summary}</p>
             </li>
@@ -450,18 +456,19 @@ function VersionsPanel({ detail }: { detail: DemoDetail }) {
 }
 
 function ChecksPanel({ detail }: { detail: DemoDetail }) {
+  const t = useT();
   const lint = detail.lint;
   return (
     <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
       <p className="mb-3 text-muted">
-        Every text and image must carry a <code className="font-mono text-[12px]">data-pt</code> key, so the client can edit it.
+        {t("Every text and image must carry a {attr} key, so the client can edit it.", { attr: "data-pt" })}
       </p>
       {!lint ? null : lint.errors + lint.warnings === 0 ? (
-        <p className="text-ok">✓ No problems found.</p>
+        <p className="text-ok">{t("✓ No problems found.")}</p>
       ) : (
         <>
           <p className="mb-2 font-medium">
-            {lint.errors} error(s), {lint.warnings} warning(s)
+            {t("{e} error(s), {w} warning(s)", { e: lint.errors, w: lint.warnings })}
           </p>
           <pre className="font-mono text-[11px] leading-relaxed whitespace-pre-wrap text-muted">{lint.report}</pre>
         </>
@@ -471,16 +478,17 @@ function ChecksPanel({ detail }: { detail: DemoDetail }) {
 }
 
 function SaveVersionDialog(props: { next: number; onClose: () => void; onSave: (summary: string) => Promise<void> }) {
+  const t = useT();
   const [summary, setSummary] = useState("");
   const [busy, setBusy] = useState(false);
   return (
     <Modal
-      title={`Save as v${props.next}`}
+      title={t("Save as v{n}", { n: props.next })}
       onClose={props.onClose}
       footer={
         <>
           <button className="btn" onClick={props.onClose}>
-            Cancel
+            {t("Cancel")}
           </button>
           <button
             className="btn btn-primary"
@@ -490,13 +498,13 @@ function SaveVersionDialog(props: { next: number; onClose: () => void; onSave: (
               await props.onSave(summary);
             }}
           >
-            Save version
+            {t("Save version")}
           </button>
         </>
       }
     >
-      <label className="label" htmlFor="sv-summary">What changed (optional)</label>
-      <input id="sv-summary" className="input" autoFocus value={summary} onChange={(e) => setSummary(e.target.value)} placeholder="New hero, pricing section" />
+      <label className="label" htmlFor="sv-summary">{t("What changed (optional)")}</label>
+      <input id="sv-summary" className="input" autoFocus value={summary} onChange={(e) => setSummary(e.target.value)} placeholder={t("New hero, pricing section")} />
     </Modal>
   );
 }

@@ -1,0 +1,34 @@
+appId: dev.prototyper.app
+productName: Prototyper
+copyright: Copyright © 2026 Prototyper contributors
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**
+  - package.json
+# The prototype kit's templates (CLAUDE.md, starter files) live outside the app bundle code.
+extraResources:
+  - from: ../../packages/prototype-kit/templates
+    to: templates
+# Native modules (Tailwind's oxide scanner, lightningcss) must stay outside the asar archive.
+asarUnpack:
+  - "**/*.node"
+npmRebuild: false
+mac:
+  category: public.app-category.developer-tools
+  icon: build/icon.icns
+  target:
+    - target: dmg
+      arch: [arm64]
+  # Unsigned: users open it the first time with right-click → Open (see README).
+  identity: null
+  hardenedRuntime: false
+  extendInfo:
+    NSAppleEventsUsageDescription: Prototyper opens a Terminal window to continue a demo's Claude Code session.
+dmg:
+  title: Prototyper ${version}
+  artifactName: Prototyper-${version}-${arch}.dmg
+
+# Releases are uploaded to GitHub manually (see docs/releasing.md).
+publish: null

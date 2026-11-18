@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import type { ShareTarget } from "@common/types";
 import { api } from "../api";
 import { errorMessage } from "../format";
+import { useT } from "../i18n";
 
 type Target = ShareTarget & { hasToken: boolean };
 
 /** Settings section: the domains (share servers) demos can be published to. */
 export function ShareTargets() {
+  const tr = useT();
   const [targets, setTargets] = useState<Target[]>([]);
   const [editing, setEditing] = useState<Partial<Target> & { adminToken?: string } | null>(null);
   const [status, setStatus] = useState<Record<string, string>>({});
@@ -34,10 +36,10 @@ export function ShareTargets() {
   };
 
   const test = async (id: string) => {
-    setStatus((s) => ({ ...s, [id]: "Testing…" }));
+    setStatus((s) => ({ ...s, [id]: tr("Testing…") }));
     try {
       await api.share.testTarget(id);
-      setStatus((s) => ({ ...s, [id]: "✓ Connected" }));
+      setStatus((s) => ({ ...s, [id]: tr("✓ Connected") }));
     } catch (e) {
       setStatus((s) => ({ ...s, [id]: errorMessage(e) }));
     }
@@ -45,9 +47,9 @@ export function ShareTargets() {
 
   return (
     <div>
-      <span className="label">Share domains</span>
+      <span className="label">{tr("Share domains")}</span>
       <p className="mb-2 text-[12px] text-faint">
-        Prototyper share servers where demos are published for clients. Each demo picks one. Admin tokens are stored in the macOS keychain.
+        {tr("Prototyper share servers where demos are published for clients. Each demo picks one. Admin tokens are stored in the macOS keychain.")}
       </p>
       <div className="flex flex-col gap-2">
         {targets.map((t) => (
@@ -55,10 +57,10 @@ export function ShareTargets() {
             <div className="min-w-0 flex-1">
               <div className="font-medium">{t.name}</div>
               <div className="truncate font-mono text-[12px] text-muted">{t.baseUrl}</div>
-              {status[t.id] && <div className={`text-[12px] ${status[t.id]!.startsWith("✓") ? "text-ok" : status[t.id] === "Testing…" ? "text-muted" : "text-danger"}`}>{status[t.id]}</div>}
+              {status[t.id] && <div className={`text-[12px] ${status[t.id]!.startsWith("✓") ? "text-ok" : status[t.id] === tr("Testing…") ? "text-muted" : "text-danger"}`}>{status[t.id]}</div>}
             </div>
-            <button className="btn btn-ghost" onClick={() => void test(t.id)}>Test</button>
-            <button className="btn btn-ghost" onClick={() => setEditing({ ...t })}>Edit</button>
+            <button className="btn btn-ghost" onClick={() => void test(t.id)}>{tr("Test")}</button>
+            <button className="btn btn-ghost" onClick={() => setEditing({ ...t })}>{tr("Edit")}</button>
             <button
               className="btn btn-ghost text-danger"
               onClick={async () => {
@@ -66,29 +68,29 @@ export function ShareTargets() {
                 load();
               }}
             >
-              Remove
+              {tr("Remove")}
             </button>
           </div>
         ))}
         {editing ? (
           <div className="flex flex-col gap-2 rounded-md border border-accent/40 bg-accent-soft/40 p-3">
-            <input className="input" placeholder="Name (e.g. Preview)" value={editing.name ?? ""} onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
+            <input className="input" placeholder={tr("Name (e.g. Preview)")} value={editing.name ?? ""} onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
             <input className="input font-mono text-[12px]" placeholder="https://preview.example.com" value={editing.baseUrl ?? ""} onChange={(e) => setEditing({ ...editing, baseUrl: e.target.value })} />
             <input
               className="input font-mono text-[12px]"
               type="password"
-              placeholder={editing.id ? "Admin token (leave empty to keep the current one)" : "Admin token"}
+              placeholder={tr(editing.id ? "Admin token (leave empty to keep the current one)" : "Admin token")}
               value={editing.adminToken ?? ""}
               onChange={(e) => setEditing({ ...editing, adminToken: e.target.value })}
             />
             {error && <p className="text-[12px] text-danger">{error}</p>}
             <div className="flex justify-end gap-2">
-              <button className="btn" onClick={() => (setEditing(null), setError(undefined))}>Cancel</button>
-              <button className="btn btn-primary" onClick={() => void save()}>Save</button>
+              <button className="btn" onClick={() => (setEditing(null), setError(undefined))}>{tr("Cancel")}</button>
+              <button className="btn btn-primary" onClick={() => void save()}>{tr("Save")}</button>
             </div>
           </div>
         ) : (
-          <button className="btn self-start" onClick={() => setEditing({})}>Add share domain</button>
+          <button className="btn self-start" onClick={() => setEditing({})}>{tr("Add share domain")}</button>
         )}
       </div>
     </div>

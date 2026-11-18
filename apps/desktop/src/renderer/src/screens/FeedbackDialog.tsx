@@ -3,8 +3,10 @@ import type { ContentValue, DemoRef, FeedbackEdit, FeedbackRound } from "@common
 import { api } from "../api";
 import { Modal } from "../components/Modal";
 import { errorMessage, timeAgo } from "../format";
+import { useT } from "../i18n";
 
 export function FeedbackDialog(props: { demoRef: DemoRef; nextVersion: number; onClose: () => void; onStarted: () => void }) {
+  const t = useT();
   const [round, setRound] = useState<FeedbackRound | undefined>();
   const [error, setError] = useState<string | undefined>();
   const [edits, setEdits] = useState<Set<string>>(new Set());
@@ -54,18 +56,18 @@ export function FeedbackDialog(props: { demoRef: DemoRef; nextVersion: number; o
 
   return (
     <Modal
-      title={round ? `Client feedback on v${round.versionNumber}` : "Client feedback"}
+      title={round ? t("Client feedback on v{n}", { n: round.versionNumber }) : t("Client feedback")}
       width="max-w-4xl"
       onClose={props.onClose}
       footer={
         <>
           {error && <span className="mr-auto self-center text-danger">{error}</span>}
-          <button className="btn" onClick={props.onClose}>Cancel</button>
-          <button className="btn" disabled={!round || busy || edits.size === 0} onClick={() => void apply(false)} title="Apply the accepted edits to the demo without asking Claude">
-            Apply edits only
+          <button className="btn" onClick={props.onClose}>{t("Cancel")}</button>
+          <button className="btn" disabled={!round || busy || edits.size === 0} onClick={() => void apply(false)} title={t("Apply the accepted edits to the demo without asking Claude")}>
+            {t("Apply edits only")}
           </button>
           <button className="btn btn-primary" disabled={!round || busy || (edits.size === 0 && notes.size === 0 && !extra.trim())} onClick={() => void apply(true)}>
-            {busy ? "Starting…" : `Apply and generate v${props.nextVersion}`}
+            {busy ? t("Starting…") : t("Apply and generate v{n}", { n: props.nextVersion })}
           </button>
         </>
       }
@@ -73,23 +75,23 @@ export function FeedbackDialog(props: { demoRef: DemoRef; nextVersion: number; o
       {!round && !error && (
         <div className="flex items-center gap-2 py-8 text-muted">
           <span className="h-3 w-3 animate-spin rounded-full border-2 border-line border-t-accent" />
-          Downloading feedback and preparing screenshots…
+          {t("Downloading feedback and preparing screenshots…")}
         </div>
       )}
       {round && (
         <div className="flex flex-col gap-6">
           <p className="text-muted">
             {round.status === "submitted"
-              ? `Sent by ${round.submittedBy ?? "the client"} ${round.submittedAt ? timeAgo(round.submittedAt) : ""}.`
-              : "The client has not pressed “I'm done” yet: applying now closes the round, and later changes on this version will be lost."}{" "}
-            Accepted edits are written into the pages as they are; accepted notes go to Claude. The client's link is closed for edits while you work on the next version.
+              ? t("Sent by {name} {ago}.", { name: round.submittedBy ?? t("the client"), ago: round.submittedAt ? timeAgo(round.submittedAt, t) : "" })
+              : t("The client has not pressed “I'm done” yet: applying now closes the round, and later changes on this version will be lost.")}{" "}
+            {t("Accepted edits are written into the pages as they are; accepted notes go to Claude. The client's link is closed for edits while you work on the next version.")}
           </p>
-          {nothing && <p className="font-medium">No edits or notes in this round.</p>}
+          {nothing && <p className="font-medium">{t("No edits or notes in this round.")}</p>}
 
           {round.edits.length > 0 && (
             <section>
               <h3 className="mb-2 flex items-center gap-2 font-semibold">
-                Direct edits <span className="font-normal text-faint">{edits.size} of {round.edits.length} accepted</span>
+                {t("Direct edits")} <span className="font-normal text-faint">{t("{a} of {b} accepted", { a: edits.size, b: round.edits.length })}</span>
               </h3>
               <ul className="flex flex-col divide-y divide-line rounded-lg border border-line">
                 {round.edits.map((e) => (
@@ -112,7 +114,7 @@ export function FeedbackDialog(props: { demoRef: DemoRef; nextVersion: number; o
           {round.notes.length > 0 && (
             <section>
               <h3 className="mb-2 flex items-center gap-2 font-semibold">
-                Notes for Claude <span className="font-normal text-faint">{notes.size} of {round.notes.length} included</span>
+                {t("Notes for Claude")} <span className="font-normal text-faint">{t("{a} of {b} included", { a: notes.size, b: round.notes.length })}</span>
               </h3>
               <ul className="flex flex-col divide-y divide-line rounded-lg border border-line">
                 {round.notes.map((n, i) => (
@@ -122,7 +124,7 @@ export function FeedbackDialog(props: { demoRef: DemoRef; nextVersion: number; o
                       <div className="flex items-baseline gap-2 text-[12px] text-faint">
                         <span className="grid h-5 w-5 place-items-center rounded-full bg-[#f05a28] text-[11px] font-semibold text-white">{i + 1}</span>
                         <span>{n.page}</span>
-                        {n.context && <span className="truncate">on {n.context}</span>}
+                        {n.context && <span className="truncate">{t("on {context}", { context: n.context })}</span>}
                         <span className="ml-auto shrink-0">{n.author}</span>
                       </div>
                       <p className="mt-1 whitespace-pre-wrap">{n.text}</p>
@@ -139,8 +141,8 @@ export function FeedbackDialog(props: { demoRef: DemoRef; nextVersion: number; o
           )}
 
           <section>
-            <label className="label" htmlFor="fb-extra">Your instructions for v{props.nextVersion} (optional, they take priority over the notes)</label>
-            <textarea id="fb-extra" className="input min-h-20 resize-y" value={extra} onChange={(e) => setExtra(e.target.value)} placeholder="e.g. keep the hero as it is; the client confirmed by phone they want a FAQ section" />
+            <label className="label" htmlFor="fb-extra">{t("Your instructions for v{n} (optional, they take priority over the notes)", { n: props.nextVersion })}</label>
+            <textarea id="fb-extra" className="input min-h-20 resize-y" value={extra} onChange={(e) => setExtra(e.target.value)} placeholder={t("e.g. keep the hero as it is; the client confirmed by phone they want a FAQ section")} />
           </section>
         </div>
       )}

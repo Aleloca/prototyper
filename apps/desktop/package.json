@@ -9,7 +9,8 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "start": "electron-vite preview",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "dist": "electron-vite build && node --check out/main/index.js && electron-builder --mac --publish never"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.5",
@@ -17,6 +18,7 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.3.0",
     "electron": "^45.3.4",
+    "electron-builder": "^26.18.0",
     "electron-vite": "^6.0.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
@@ -30,5 +32,13 @@
     "simple-git": "^4.1.0",
     "tailwindcss": "^4.3.5",
     "tar": "^7.5.23"
+  },
+  "author": "Prototyper contributors",
+  "license": "MIT",
+  "homepage": "https://github.com/Aleloca/prototyper",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Aleloca/prototyper.git",
+    "directory": "apps/desktop"
   }
 }

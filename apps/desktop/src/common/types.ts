@@ -9,6 +9,8 @@ export interface Settings {
   model?: string;
   /** Run Claude without the user's global settings, hooks, plugins and MCP servers. */
   isolateClaude?: boolean;
+  /** Interface language; "auto" follows the system. */
+  uiLanguage?: "auto" | "en" | "it";
   /** Where demos can be published. Admin tokens are stored separately, encrypted. */
   shareTargets?: ShareTarget[];
 }

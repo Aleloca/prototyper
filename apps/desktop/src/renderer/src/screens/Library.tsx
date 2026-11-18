@@ -4,8 +4,9 @@ import { BrandDialog } from "./BrandDialog";
 import { api } from "../api";
 import { timeAgo } from "../format";
 import { NewDemoDialog } from "./NewDemoDialog";
+import { useT } from "../i18n";
 
-const STATUS_LABEL: Record<DemoStatus, string> = {
+const STATUS_LABEL: Record<DemoStatus, string> = { // English keys, translated with t()
   draft: "Draft",
   "in-review": "In client review",
   feedback: "Feedback received",
@@ -22,6 +23,7 @@ const STATUS_CLASS: Record<DemoStatus, string> = {
 };
 
 export function Library(props: { onOpen: (ref: DemoRef, autostart?: GenerateOptions) => void; onSettings: () => void }) {
+  const t = useT();
   const [clients, setClients] = useState<LibraryClient[] | undefined>();
   const [newDemo, setNewDemo] = useState(false);
   const [query, setQuery] = useState("");
@@ -44,12 +46,12 @@ export function Library(props: { onOpen: (ref: DemoRef, autostart?: GenerateOpti
       <header className="drag flex h-13 shrink-0 items-center gap-3 border-b border-line bg-panel pr-4 pl-24">
         <h1 className="text-[14px] font-semibold">Prototyper</h1>
         <div className="no-drag ml-auto flex items-center gap-2">
-          <input className="input w-56" placeholder="Search clients and demos" value={query} onChange={(e) => setQuery(e.target.value)} />
-          <button className="btn btn-ghost" onClick={props.onSettings} aria-label="Settings">
-            Settings
+          <input className="input w-56" placeholder={t("Search clients and demos")} value={query} onChange={(e) => setQuery(e.target.value)} />
+          <button className="btn btn-ghost" onClick={props.onSettings} aria-label={t("Settings")}>
+            {t("Settings")}
           </button>
           <button className="btn btn-primary" onClick={() => setNewDemo(true)}>
-            New demo
+            {t("New demo")}
           </button>
         </div>
       </header>
@@ -64,13 +66,13 @@ export function Library(props: { onOpen: (ref: DemoRef, autostart?: GenerateOpti
                 <div className="mb-3 flex items-baseline gap-3">
                   <h2 className="text-[15px] font-semibold">{client.name}</h2>
                   {client.website && <span className="truncate text-faint">{client.website.replace(/^https?:\/\//, "")}</span>}
-                  <span className="text-faint">· {client.demos.length} {client.demos.length === 1 ? "demo" : "demos"}</span>
+                  <span className="text-faint">· {client.demos.length} {t(client.demos.length === 1 ? "demo" : "demos")}</span>
                   <button className="btn btn-ghost ml-auto py-1" onClick={() => setBrandFor(client.slug)}>
-                    {client.hasBrand ? "Brand" : "Add brand"}
+                    {t(client.hasBrand ? "Brand" : "Add brand")}
                   </button>
                 </div>
                 {client.demos.length === 0 ? (
-                  <p className="text-muted">No demos yet.</p>
+                  <p className="text-muted">{t("No demos yet.")}</p>
                 ) : (
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
                     {client.demos.map((d) => (
@@ -108,6 +110,7 @@ export function Library(props: { onOpen: (ref: DemoRef, autostart?: GenerateOpti
 }
 
 function DemoCard({ demo, onOpen }: { demo: DemoSummary; onOpen: () => void }) {
+  const t = useT();
   const version = demo.versions.at(-1);
   return (
     <button
@@ -118,7 +121,7 @@ function DemoCard({ demo, onOpen }: { demo: DemoSummary; onOpen: () => void }) {
         {demo.thumbnail ? (
           <img src={demo.thumbnail} alt="" className="h-full w-full object-cover object-top" />
         ) : (
-          <div className="grid h-full place-items-center text-faint">No preview yet</div>
+          <div className="grid h-full place-items-center text-faint">{t("No preview yet")}</div>
         )}
       </div>
       <div className="flex flex-col gap-1.5 px-3 py-2.5">
@@ -127,8 +130,8 @@ function DemoCard({ demo, onOpen }: { demo: DemoSummary; onOpen: () => void }) {
           {version && <span className="text-faint">v{version.number}</span>}
         </div>
         <div className="flex items-center gap-2">
-          <span className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${STATUS_CLASS[demo.status]}`}>{STATUS_LABEL[demo.status]}</span>
-          <span className="ml-auto text-[12px] text-faint">{timeAgo(demo.updatedAt)}</span>
+          <span className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${STATUS_CLASS[demo.status]}`}>{t(STATUS_LABEL[demo.status])}</span>
+          <span className="ml-auto text-[12px] text-faint">{timeAgo(demo.updatedAt, t)}</span>
         </div>
       </div>
     </button>
@@ -136,14 +139,15 @@ function DemoCard({ demo, onOpen }: { demo: DemoSummary; onOpen: () => void }) {
 }
 
 function EmptyState({ onCreate }: { onCreate: () => void }) {
+  const t = useT();
   return (
     <div className="mx-auto mt-24 max-w-md text-center">
-      <h2 className="text-[17px] font-semibold">Your demo library is empty</h2>
+      <h2 className="text-[17px] font-semibold">{t("Your demo library is empty")}</h2>
       <p className="mt-2 text-muted">
-        Create a demo from a brief. Claude builds a first version you can preview here, then share with your client for feedback.
+        {t("Create a demo from a brief. Claude builds a first version you can preview here, then share with your client for feedback.")}
       </p>
       <button className="btn btn-primary mt-5" onClick={onCreate}>
-        Create your first demo
+        {t("Create your first demo")}
       </button>
     </div>
   );
