@@ -19,7 +19,7 @@ A macOS app for building landing-page and small-site **demos with Claude Code**,
 |---|---|
 | `packages/shared` | The `data-pt` content contract, linter and edit application |
 | `packages/prototype-kit` | `CLAUDE.md` template, prompts and starter files for demos |
-| `apps/desktop` | Electron app *(coming)* |
+| `apps/desktop` | Electron app: library, Claude runner, build, preview, versions |
 | `apps/server` | Self-hosted share server *(coming)* |
 | `packages/overlay` | Client review overlay *(coming)* |
 
@@ -32,6 +32,22 @@ pnpm install
 pnpm test
 pnpm typecheck
 ```
+
+### Running the desktop app
+
+Requires [Claude Code](https://claude.com/claude-code) installed and logged in.
+
+```sh
+pnpm --filter @prototyper/desktop dev
+```
+
+To try it without touching your real library and settings:
+
+```sh
+PROTOTYPER_LIBRARY=/tmp/pt-lib PROTOTYPER_USER_DATA=/tmp/pt-data pnpm --filter @prototyper/desktop dev
+```
+
+`apps/desktop/scripts/e2e-generate.ts` runs a full generation with the real CLI and no UI.
 
 ## License
 

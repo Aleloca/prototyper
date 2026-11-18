@@ -64,7 +64,8 @@ export class DemoService {
     const last = meta.versions.at(-1);
     const unsavedChanges = last ? (await new DemoRepo(dir).commitsSince(last.tag).catch(() => 0)) > 0 : hasPages;
     const lint = this.lint.get(keyOf(ref));
-    return { meta, dir, previewUrl, hasPages, running: this.running.has(keyOf(ref)), unsavedChanges, ...(lint ? { lint } : {}) };
+    const clientName = (await this.deps.library().getClient(ref.client)).name;
+    return { meta, clientName, dir, previewUrl, hasPages, running: this.running.has(keyOf(ref)), unsavedChanges, ...(lint ? { lint } : {}) };
   }
 
   async log(ref: DemoRef): Promise<RunEvent[]> {
@@ -87,6 +88,7 @@ export class DemoService {
     if (this.watchers.has(key)) return;
     const src = join(this.dir(ref), "src");
     await this.refreshLint(ref);
+    void this.ensureThumbnail(ref);
     let timer: NodeJS.Timeout | undefined;
     try {
       const w = watch(src, { recursive: true }, () => {
@@ -97,6 +99,16 @@ export class DemoService {
     } catch {
       /* src missing; nothing to watch */
     }
+  }
+
+  /** Demos generated outside the app (or before a crash) may have no thumbnail yet. */
+  private async ensureThumbnail(ref: DemoRef): Promise<void> {
+    const dir = this.dir(ref);
+    const thumb = join(dir, ".prototyper", "thumb.png");
+    const exists = async (p: string) => stat(p).then(() => true, () => false);
+    if ((await exists(thumb)) || !(await exists(join(dir, "dist", "index.html")))) return;
+    await mkdir(join(dir, ".prototyper"), { recursive: true });
+    await this.deps.capture(this.deps.preview.mount(keyOf(ref), join(dir, "dist")), thumb).catch(() => {});
   }
 
   close(ref: DemoRef): void {
@@ -253,15 +265,26 @@ export class DemoService {
     }
     if (!result) {
       const sessionId = randomUUID();
-      await library.updateMeta(ref, (m) => void (m.claudeSessionId = sessionId));
+      await library.updateMeta(ref, (m) => {
+        m.claudeSessionId = sessionId;
+        m.claudeSessionCostUsd = 0;
+      });
       result = await run(sessionId, false);
     }
 
+    // The CLI reports the session's cumulative cost; show what this run added.
+    let runCost: number | undefined;
+    if (result.costUsd !== undefined) {
+      const total = result.costUsd;
+      const before = (await library.readMeta(ref)).claudeSessionCostUsd ?? 0;
+      runCost = Math.max(0, total - before);
+      await library.updateMeta(ref, (m) => void (m.claudeSessionCostUsd = total));
+    }
     await this.record(ref, {
       type: "result",
       ok: result.ok,
       text: result.text,
-      ...(result.costUsd !== undefined ? { costUsd: result.costUsd } : {}),
+      ...(runCost !== undefined ? { costUsd: runCost } : {}),
       ...(result.durationMs !== undefined ? { durationMs: result.durationMs } : {}),
       at: now(),
     });

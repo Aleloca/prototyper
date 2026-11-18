@@ -44,6 +44,8 @@ export interface DemoMeta {
   createdAt: string;
   updatedAt: string;
   claudeSessionId?: string;
+  /** Cumulative cost reported by the CLI for the current session, used to show per-run cost. */
+  claudeSessionCostUsd?: number;
   /** Set while a proposed structure waits for approval. */
   pendingStructure?: string;
   versions: VersionInfo[];
@@ -86,6 +88,7 @@ export interface LintSummary {
 /** What the workspace needs to render a demo. */
 export interface DemoDetail {
   meta: DemoMeta;
+  clientName: string;
   dir: string;
   previewUrl: string;
   hasPages: boolean;

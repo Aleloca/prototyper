@@ -76,7 +76,7 @@ export function Workspace(props: { demoRef: DemoRef; autostart?: { structureFirs
           ← Library
         </button>
         <div className="flex min-w-0 items-baseline gap-2">
-          <span className="truncate text-muted">{meta.clientSlug}</span>
+          <span className="truncate text-muted">{detail.clientName}</span>
           <span className="text-faint">/</span>
           <span className="truncate font-semibold">{meta.name}</span>
           {version && <span className="text-faint">v{version.number}</span>}
@@ -305,7 +305,7 @@ function EventItem({ event: e }: { event: RunEvent }) {
     case "user":
       return <div className="ml-8 rounded-lg bg-accent-soft px-3 py-2 whitespace-pre-wrap">{e.text}</div>;
     case "assistant":
-      return <div className="leading-relaxed whitespace-pre-wrap">{e.text}</div>;
+      return <Markdownish text={e.text} />;
     case "tool":
       return (
         <div className="truncate font-mono text-[11.5px] text-faint">
@@ -316,7 +316,7 @@ function EventItem({ event: e }: { event: RunEvent }) {
       return (
         <div className="rounded-lg border border-line bg-canvas px-3 py-2">
           <p className="mb-1 text-[12px] font-medium text-muted">Proposed structure</p>
-          <div className="leading-relaxed whitespace-pre-wrap">{e.text}</div>
+          <Markdownish text={e.text} />
         </div>
       );
     case "result":
@@ -421,5 +421,39 @@ function SaveVersionDialog(props: { next: number; onClose: () => void; onSave: (
       <label className="label" htmlFor="sv-summary">What changed (optional)</label>
       <input id="sv-summary" className="input" autoFocus value={summary} onChange={(e) => setSummary(e.target.value)} placeholder="New hero, pricing section" />
     </Modal>
+  );
+}
+
+/** Minimal Markdown for Claude's messages: headings, bullets, **bold**, `code`. No HTML is injected. */
+function Markdownish({ text }: { text: string }) {
+  const inline = (line: string) =>
+    line.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).map((part, i) =>
+      part.startsWith("**") && part.endsWith("**") && part.length > 4 ? (
+        <strong key={i}>{part.slice(2, -2)}</strong>
+      ) : part.startsWith("`") && part.endsWith("`") && part.length > 2 ? (
+        <code key={i} className="rounded bg-black/5 px-1 font-mono text-[12px]">{part.slice(1, -1)}</code>
+      ) : (
+        part
+      ),
+    );
+  return (
+    <div className="flex flex-col gap-1 leading-relaxed">
+      {text.split("\n").map((raw, i) => {
+        const line = raw.trimEnd();
+        if (!line.trim()) return <div key={i} className="h-1" />;
+        const heading = /^#{1,6}\s+(.*)$/.exec(line);
+        if (heading) return <p key={i} className="mt-1 font-semibold">{inline(heading[1]!)}</p>;
+        const bullet = /^(\s*)[-*]\s+(.*)$/.exec(line);
+        if (bullet) {
+          return (
+            <div key={i} className="flex gap-2" style={{ paddingLeft: bullet[1]!.length * 6 }}>
+              <span className="text-faint">•</span>
+              <span>{inline(bullet[2]!)}</span>
+            </div>
+          );
+        }
+        return <p key={i}>{inline(line)}</p>;
+      })}
+    </div>
   );
 }
