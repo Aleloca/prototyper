@@ -161,7 +161,9 @@ Claude has no real photos. By default it generates SVG placeholders with a descr
 
 ## 5. Share server
 
-**Stack**: Node 22, Fastify, SQLite (better-sqlite3) and files on disk. It ships as a Docker image on GHCR, with a `docker-compose.yml` that adds Caddy for automatic HTTPS. Everything runs in one container with one `/data` volume.
+**Stack**: Node 22.5+, Fastify, SQLite through the built-in `node:sqlite` (no native database driver) and files on disk. It is bundled into a single file and deployed with pm2 behind nginx + certbot (see [self-hosting](self-hosting.md)); a Docker image may follow.
+
+**Several domains**: one server can answer on many domains. In the app, Settings lists the share domains (base URL + admin token, kept in the macOS keychain) and each demo is published on one of them. A share stores its domain and returns 404 on any other, so one client never sees another client's demo under their domain.
 
 ### 5.1 Data model
 

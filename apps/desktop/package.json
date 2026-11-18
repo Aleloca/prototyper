@@ -28,6 +28,7 @@
     "@tailwindcss/node": "^4.3.5",
     "@tailwindcss/oxide": "^4.3.5",
     "simple-git": "^4.1.0",
-    "tailwindcss": "^4.3.5"
+    "tailwindcss": "^4.3.5",
+    "tar": "^7.5.23"
   }
 }

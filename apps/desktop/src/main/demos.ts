@@ -8,10 +8,11 @@ import {
   generatePrompt,
   lintFixPrompt,
 } from "@prototyper/prototype-kit";
-import type { DemoDetail, DemoMeta, DemoRef, LintSummary, NewDemoInput, RunEvent, RunPhase, Settings } from "../common/types";
+import type { DemoDetail, DemoMeta, DemoRef, LintSummary, NewDemoInput, RoundSummary, RunEvent, RunPhase, Settings, ShareInfo } from "../common/types";
 import { buildSite, lintSite } from "./build";
 import { describeTool, findClaude, runClaude } from "./claude";
 import { DemoRepo } from "./git";
+import { changelogFor, type ShareClient } from "./share";
 import type { Library } from "./library";
 import type { PreviewServer } from "./preview";
 
@@ -27,6 +28,8 @@ export interface DemoServiceDeps {
   changed: (ref: DemoRef) => void;
   /** Captures a PNG thumbnail of `url` into `outPath` (needs Electron). */
   capture: (url: string, outPath: string) => Promise<void>;
+  /** Admin API client for a configured share target. */
+  shareClient?: (targetId: string) => ShareClient;
 }
 
 interface Running {
@@ -173,6 +176,61 @@ export class DemoService {
     await repo.tag(tag, text);
     await this.record(ref, { type: "version", number, at: now() });
     this.deps.changed(ref);
+  }
+
+  /**
+   * Publish the latest saved version to a share target. The share link stays the same
+   * across versions; each publish opens a new review round on the server.
+   */
+  async publish(ref: DemoRef, targetId: string): Promise<ShareInfo> {
+    if (this.isRunning(ref)) throw new Error("Wait for Claude to finish before publishing.");
+    const client = this.client(targetId);
+    const detail = await this.detail(ref);
+    const version = detail.meta.versions.at(-1);
+    if (!version) throw new Error("Save a version before publishing.");
+    if (detail.unsavedChanges) throw new Error(`There are changes after v${version.number}. Save a new version before publishing.`);
+
+    await buildSite(detail.dir);
+    await client.putProject(detail.meta.id, `${detail.clientName} — ${detail.meta.name}`);
+    await client.uploadVersion(detail.meta.id, version.number, join(detail.dir, "dist"), (await changelogFor(detail.dir, version.number)) || version.summary);
+    const share = await client.putShare(detail.meta.id);
+    const info: ShareInfo = {
+      targetId,
+      token: share.token,
+      url: client.shareUrl(share.token),
+      publishedVersion: version.number,
+      publishedAt: now(),
+      status: share.status,
+    };
+    await this.deps.library().updateMeta(ref, (m) => {
+      m.share = info;
+      if (m.status === "draft" || m.status === "feedback") m.status = "in-review";
+    });
+    await this.record(ref, { type: "published", version: version.number, url: info.url, at: now() });
+    this.deps.changed(ref);
+    return info;
+  }
+
+  async setShareStatus(ref: DemoRef, status: ShareInfo["status"]): Promise<void> {
+    const meta = await this.deps.library().readMeta(ref);
+    if (!meta.share) throw new Error("This demo has not been shared yet.");
+    await this.client(meta.share.targetId).setShareStatus(meta.share.token, status);
+    await this.deps.library().updateMeta(ref, (m) => {
+      if (m.share) m.share.status = status;
+      if (status === "readonly" && m.status === "in-review") m.status = "approved";
+    });
+    this.deps.changed(ref);
+  }
+
+  async rounds(ref: DemoRef): Promise<RoundSummary[]> {
+    const meta = await this.deps.library().readMeta(ref);
+    if (!meta.share) return [];
+    return this.client(meta.share.targetId).rounds(meta.id);
+  }
+
+  private client(targetId: string): ShareClient {
+    if (!this.deps.shareClient) throw new Error("Sharing is not configured.");
+    return this.deps.shareClient(targetId);
   }
 
   // --- internals -------------------------------------------------------------------------------

@@ -1,0 +1,20 @@
+# /etc/nginx/sites-available/preview.example.com
+# Then: ln -s ../sites-available/preview.example.com /etc/nginx/sites-enabled/
+#       certbot --nginx -d preview.example.com
+server {
+    listen 80;
+    server_name preview.example.com;
+
+    # Version uploads (the whole built site) and client image uploads.
+    client_max_body_size 200m;
+
+    location / {
+        proxy_pass http://127.0.0.1:3700;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 120s;
+    }
+}

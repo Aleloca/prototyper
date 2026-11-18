@@ -3,6 +3,7 @@ import type { DemoDetail, DemoRef, RunEvent } from "@common/types";
 import { api } from "../api";
 import { Modal } from "../components/Modal";
 import { errorMessage, timeAgo } from "../format";
+import { ShareDialog } from "./ShareDialog";
 
 type Device = "desktop" | "tablet" | "mobile";
 const DEVICE_WIDTH: Record<Device, string> = { desktop: "100%", tablet: "820px", mobile: "390px" };
@@ -19,6 +20,7 @@ export function Workspace(props: { demoRef: DemoRef; autostart?: { structureFirs
   const [tab, setTab] = useState<Tab>("claude");
   const [error, setError] = useState<string | undefined>();
   const [saving, setSaving] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const started = useRef(false);
 
   const reload = useCallback(() => void api.demo.detail(demoRef).then(setDetail), [demoRef]);
@@ -109,6 +111,9 @@ export function Workspace(props: { demoRef: DemoRef; autostart?: { structureFirs
           <button className="btn" disabled={!detail.unsavedChanges || running} onClick={() => setSaving(true)}>
             Save version
           </button>
+          <button className="btn btn-primary" disabled={!version || running} onClick={() => setSharing(true)}>
+            {meta.share ? "Shared" : "Share"}
+          </button>
         </div>
       </header>
 
@@ -157,6 +162,17 @@ export function Workspace(props: { demoRef: DemoRef; autostart?: { structureFirs
         </aside>
       </div>
 
+      {sharing && (
+        <ShareDialog
+          demoRef={demoRef}
+          detail={detail}
+          onClose={() => setSharing(false)}
+          onSaveVersion={() => {
+            setSharing(false);
+            setSaving(true);
+          }}
+        />
+      )}
       {saving && (
         <SaveVersionDialog
           next={(version?.number ?? 0) + 1}
@@ -340,6 +356,8 @@ function EventItem({ event: e }: { event: RunEvent }) {
       );
     case "version":
       return <div className="text-[12px] font-medium text-ok">Saved as v{e.number}</div>;
+    case "published":
+      return <div className="text-[12px] font-medium text-accent">Published v{e.version} for client review</div>;
     case "error":
       return <div className="text-danger">{e.message}</div>;
     case "done":

@@ -1,33 +1,12 @@
-import { cp, mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join, relative, sep } from "node:path";
 import { compile, optimize } from "@tailwindcss/node";
 import { Scanner } from "@tailwindcss/oxide";
-import { lintDemo, formatIssues, type LintResult, type Page } from "@prototyper/shared";
+import { lintDemo, formatIssues, readSite, type LintResult } from "@prototyper/shared";
 
 /** CSS entry compiled by Tailwind; files only imported by it are not copied to dist. */
 const CSS_ENTRY = "styles.css";
 const CSS_PARTIALS = new Set(["tokens.css"]);
-
-export interface SiteFiles {
-  pages: Page[];
-  assets: string[];
-}
-
-/** Read every file under `srcDir`: HTML pages with their content, everything else as asset paths. */
-export async function readSite(srcDir: string): Promise<SiteFiles> {
-  const entries = await readdir(srcDir, { recursive: true, withFileTypes: true }).catch(() => []);
-  const pages: Page[] = [];
-  const assets: string[] = [];
-  for (const e of entries) {
-    if (!e.isFile() || e.name.startsWith(".")) continue;
-    const abs = join(e.parentPath, e.name);
-    const rel = relative(srcDir, abs).split(sep).join("/");
-    if (rel.endsWith(".html")) pages.push({ path: rel, html: await readFile(abs, "utf8") });
-    else assets.push(rel);
-  }
-  pages.sort((a, b) => a.path.localeCompare(b.path));
-  return { pages, assets };
-}
 
 export async function lintSite(srcDir: string): Promise<LintResult & { report: string }> {
   const site = await readSite(srcDir);

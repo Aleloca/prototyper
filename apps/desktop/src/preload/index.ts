@@ -9,8 +9,12 @@ import type {
   LibraryClient,
   NewClientInput,
   NewDemoInput,
+  RoundSummary,
   RunEvent,
   Settings,
+  ShareInfo,
+  ShareTarget,
+  ShareTargetInput,
 } from "../common/types";
 
 const invoke = <R>(channel: string, ...args: unknown[]) => ipcRenderer.invoke(channel, ...args) as Promise<R>;
@@ -23,6 +27,12 @@ const api = {
   },
   claude: {
     check: () => invoke<ClaudeCheck>("claude:check"),
+  },
+  share: {
+    targets: () => invoke<(ShareTarget & { hasToken: boolean })[]>("share:targets"),
+    saveTarget: (input: ShareTargetInput) => invoke<ShareTarget>("share:saveTarget", input),
+    removeTarget: (id: string) => invoke<void>("share:removeTarget", id),
+    testTarget: (id: string) => invoke<boolean>("share:testTarget", id),
   },
   library: {
     list: () => invoke<LibraryClient[]>("library:list"),
@@ -39,6 +49,9 @@ const api = {
     chat: (ref: DemoRef, text: string) => invoke<void>("demo:chat", ref, text),
     cancel: (ref: DemoRef) => invoke<void>("demo:cancel", ref),
     saveVersion: (ref: DemoRef, summary: string) => invoke<void>("demo:saveVersion", ref, summary),
+    publish: (ref: DemoRef, targetId: string) => invoke<ShareInfo>("demo:publish", ref, targetId),
+    setShareStatus: (ref: DemoRef, status: ShareInfo["status"]) => invoke<void>("demo:setShareStatus", ref, status),
+    rounds: (ref: DemoRef) => invoke<RoundSummary[]>("demo:rounds", ref),
     openFolder: (ref: DemoRef) => invoke<string>("demo:openFolder", ref),
     openInBrowser: (ref: DemoRef) => invoke<void>("demo:openInBrowser", ref),
     openTerminal: (ref: DemoRef) => invoke<void>("demo:openTerminal", ref),

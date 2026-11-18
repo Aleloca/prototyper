@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { ClaudeCheck, Settings } from "@common/types";
 import { api } from "../api";
 import { Modal } from "../components/Modal";
+import { ShareTargets } from "../components/ShareTargets";
 
 const MODELS = [
   { value: "", label: "Claude Code default" },
@@ -19,7 +20,7 @@ export function SettingsDialog(props: { claude: ClaudeCheck | undefined; onClose
   const update = async (patch: Partial<Settings>) => setSettings(await api.settings.set(patch));
 
   return (
-    <Modal title="Settings" onClose={props.onClose} footer={<button className="btn btn-primary" onClick={props.onClose}>Done</button>}>
+    <Modal title="Settings" width="max-w-xl" onClose={props.onClose} footer={<button className="btn btn-primary" onClick={props.onClose}>Done</button>}>
       {settings && (
         <div className="flex flex-col gap-5">
           <div>
@@ -59,6 +60,8 @@ export function SettingsDialog(props: { claude: ClaudeCheck | undefined; onClose
               </p>
             )}
           </div>
+
+          <ShareTargets />
 
           <div>
             <label className="label" htmlFor="st-model">Model</label>

@@ -7,6 +7,42 @@ export interface Settings {
   claudePath?: string;
   /** Model alias passed to `claude --model`; CLI default when empty. */
   model?: string;
+  /** Where demos can be published. Admin tokens are stored separately, encrypted. */
+  shareTargets?: ShareTarget[];
+}
+
+/** A share server + public domain, e.g. https://preview.example.com. */
+export interface ShareTarget {
+  id: string;
+  name: string;
+  baseUrl: string;
+}
+
+export interface ShareTargetInput {
+  id?: string;
+  name: string;
+  baseUrl: string;
+  /** Omit to keep the stored token. */
+  adminToken?: string;
+}
+
+export interface ShareInfo {
+  targetId: string;
+  token: string;
+  url: string;
+  publishedVersion: number;
+  publishedAt: string;
+  status: "open" | "readonly" | "revoked";
+}
+
+export interface RoundSummary {
+  id: number;
+  versionNumber: number | null;
+  status: "open" | "submitted" | "imported";
+  submittedAt: string | null;
+  submittedBy: string | null;
+  edits: number;
+  comments: number;
 }
 
 export interface ClaudeCheck {
@@ -49,6 +85,7 @@ export interface DemoMeta {
   /** Set while a proposed structure waits for approval. */
   pendingStructure?: string;
   versions: VersionInfo[];
+  share?: ShareInfo;
 }
 
 export interface DemoRef {
@@ -110,6 +147,7 @@ export type RunEvent =
   | { type: "lint"; errors: number; warnings: number; report: string; at: string }
   | { type: "structure"; text: string; at: string }
   | { type: "version"; number: number; at: string }
+  | { type: "published"; version: number; url: string; at: string }
   | { type: "error"; message: string; at: string }
   | { type: "done"; ok: boolean; at: string };
 

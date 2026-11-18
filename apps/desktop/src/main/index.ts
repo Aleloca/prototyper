@@ -3,11 +3,14 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { BrowserWindow, app, dialog, ipcMain, shell } from "electron";
-import type { DemoRef, NewClientInput, NewDemoInput, RunEvent, Settings } from "../common/types";
+import { randomUUID } from "node:crypto";
+import type { DemoRef, NewClientInput, NewDemoInput, RunEvent, Settings, ShareInfo, ShareTargetInput } from "../common/types";
 import { checkClaude, findClaude } from "./claude";
 import { DemoService } from "./demos";
 import { Library } from "./library";
 import { PreviewServer } from "./preview";
+import { SecretStore } from "./secrets";
+import { ShareClient } from "./share";
 import { SettingsStore } from "./settings";
 
 // The kit's templates ship next to its package.json (in M6: copied into the app resources).
@@ -20,7 +23,24 @@ process.env.PROTOTYPER_TEMPLATES_DIR ??= join(
 if (process.env.PROTOTYPER_USER_DATA) app.setPath("userData", process.env.PROTOTYPER_USER_DATA);
 const settings = new SettingsStore(join(app.getPath("userData"), "settings.json"));
 if (process.env.PROTOTYPER_LIBRARY) void settings.set({ libraryRoot: process.env.PROTOTYPER_LIBRARY });
+const secrets = new SecretStore(join(app.getPath("userData"), "secrets.json"));
 const preview = new PreviewServer();
+
+function shareClient(targetId: string): ShareClient {
+  const target = settings.get().shareTargets?.find((t) => t.id === targetId);
+  if (!target) throw new Error("Unknown share domain. Check Settings.");
+  const token = secrets.get(targetId);
+  if (!token) throw new Error(`No admin token for ${target.name}. Check Settings.`);
+  return new ShareClient(target, token);
+}
+
+/** Validate and normalize a share target base URL: https only (http allowed for localhost). */
+function normalizeBaseUrl(raw: string): string {
+  const url = new URL(raw.trim().includes("://") ? raw.trim() : `https://${raw.trim()}`);
+  const local = url.hostname === "localhost" || url.hostname === "127.0.0.1";
+  if (url.protocol !== "https:" && !(local && url.protocol === "http:")) throw new Error("Share domains must use https://");
+  return `${url.protocol}//${url.host}`;
+}
 let mainWindow: BrowserWindow | undefined;
 
 const send = (channel: string, payload: unknown) => {
@@ -36,6 +56,7 @@ const demos = new DemoService({
   emit: (ref: DemoRef, event: RunEvent) => send("demo:event", { ref, event }),
   changed: (ref: DemoRef) => send("demo:changed", ref),
   capture: captureThumbnail,
+  shareClient,
 });
 
 /** Render a page offscreen and save a 640px-wide PNG. */
@@ -112,6 +133,25 @@ function registerIpc(): void {
 
   handle("claude:check", () => checkClaude(settings.get().claudePath));
 
+  handle("share:targets", () => (settings.get().shareTargets ?? []).map((t) => ({ ...t, hasToken: secrets.has(t.id) })));
+  handle("share:saveTarget", async (input: ShareTargetInput) => {
+    const targets = settings.get().shareTargets ?? [];
+    const id = input.id ?? randomUUID();
+    const target = { id, name: input.name.trim() || new URL(normalizeBaseUrl(input.baseUrl)).hostname, baseUrl: normalizeBaseUrl(input.baseUrl) };
+    if (input.adminToken !== undefined && input.adminToken.trim()) await secrets.set(id, input.adminToken.trim());
+    if (!secrets.has(id)) throw new Error("The admin token is required.");
+    await settings.set({ shareTargets: [...targets.filter((t) => t.id !== id), target] });
+    return target;
+  });
+  handle("share:removeTarget", async (id: string) => {
+    await settings.set({ shareTargets: (settings.get().shareTargets ?? []).filter((t) => t.id !== id) });
+    await secrets.set(id, undefined);
+  });
+  handle("share:testTarget", async (id: string) => {
+    await shareClient(id).health();
+    return true;
+  });
+
   handle("library:list", () => library().list());
   handle("library:createClient", (input: NewClientInput) => library().createClient(input));
 
@@ -130,6 +170,9 @@ function registerIpc(): void {
   handle("demo:chat", (ref: DemoRef, text: string) => start(ref, () => demos.chat(ref, text)));
   handle("demo:cancel", (ref: DemoRef) => demos.cancel(ref));
   handle("demo:saveVersion", (ref: DemoRef, summary: string) => demos.saveVersion(ref, summary));
+  handle("demo:publish", (ref: DemoRef, targetId: string) => demos.publish(ref, targetId));
+  handle("demo:setShareStatus", (ref: DemoRef, status: ShareInfo["status"]) => demos.setShareStatus(ref, status));
+  handle("demo:rounds", (ref: DemoRef) => demos.rounds(ref));
   handle("demo:openFolder", (ref: DemoRef) => shell.openPath(library().demoDir(ref)));
   handle("demo:openInBrowser", async (ref: DemoRef) => shell.openExternal((await demos.detail(ref)).previewUrl));
   handle("demo:openTerminal", async (ref: DemoRef) => {
