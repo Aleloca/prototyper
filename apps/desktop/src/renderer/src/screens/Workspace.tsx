@@ -297,7 +297,11 @@ function ClaudePanel(props: {
   const [feedback, setFeedback] = useState("");
   const bottom = useRef<HTMLDivElement>(null);
 
-  useEffect(() => bottom.current?.scrollIntoView({ block: "end" }), [props.events.length, props.phase]);
+  useEffect(() => {
+    // Braces matter: scrollIntoView() returns a Promise in recent Chromium, and React
+    // would call a returned value as the effect cleanup.
+    bottom.current?.scrollIntoView({ block: "end" });
+  }, [props.events.length, props.phase]);
 
   const send = () => {
     const t = text.trim();

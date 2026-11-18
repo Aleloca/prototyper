@@ -10,6 +10,7 @@ import { BrandService, type PageCapture } from "./brand";
 import { HIDE_OVERLAYS_JS, pageExtractor, type BrandRaw } from "./brand-extract";
 import { checkClaude, findClaude } from "./claude";
 import { DemoService } from "./demos";
+import { log, watchApp, watchWindow } from "./diagnostics";
 import { Library } from "./library";
 import { PreviewServer } from "./preview";
 import { SecretStore } from "./secrets";
@@ -263,6 +264,8 @@ function createWindow(): void {
     },
   });
 
+  watchWindow(mainWindow);
+
   // Links clicked in the app UI open in the default browser.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:/.test(url)) void shell.openExternal(url);
@@ -282,6 +285,9 @@ function createWindow(): void {
 async function devSnapshot(win: BrowserWindow, path: string): Promise<void> {
   // A window in the background stops repainting and capturePage returns a stale frame.
   win.webContents.setBackgroundThrottling(false);
+  win.webContents.on("console-message", (e) => {
+    if (e.level === "error" || e.level === "warning") console.log("[renderer]", e.level, e.message.slice(0, 600));
+  });
   await new Promise<void>((r) => win.webContents.once("did-finish-load", () => r()));
   await new Promise((r) => setTimeout(r, 1500));
   if (process.env.PROTOTYPER_SNAPSHOT_JS) {
@@ -302,7 +308,14 @@ async function devSnapshot(win: BrowserWindow, path: string): Promise<void> {
 
 function registerIpc(): void {
   const handle = <A extends unknown[], R>(channel: string, fn: (...args: A) => R | Promise<R>) =>
-    ipcMain.handle(channel, (_e, ...args) => fn(...(args as A)));
+    ipcMain.handle(channel, async (_e, ...args) => {
+      try {
+        return await fn(...(args as A));
+      } catch (e) {
+        log("ipc error", channel, e instanceof Error ? (e.stack ?? e.message) : String(e));
+        throw e;
+      }
+    });
 
   handle("settings:get", () => settings.get());
   handle("settings:set", (patch: Partial<Settings>) => settings.set(patch));
@@ -343,7 +356,7 @@ function registerIpc(): void {
   // Long-running tasks: return immediately, progress arrives as events.
   const start = (ref: DemoRef, run: () => Promise<void>) => {
     if (demos.isRunning(ref)) throw new Error("Claude is already working on this demo.");
-    run().catch((e: unknown) => console.error(e));
+    run().catch((e: unknown) => log("task error", e instanceof Error ? (e.stack ?? e.message) : String(e)));
   };
   handle("demo:generate", (ref: DemoRef, opts: GenerateOptions) => start(ref, () => demos.generate(ref, opts)));
   handle("demo:export", async (ref: DemoRef, opts: ExportOptions) => {
@@ -416,7 +429,12 @@ function shq(s: string): string {
   return `'${s.replace(/'/g, `'\\''`)}'`;
 }
 
+// Logs in ~/Library/Logs/Prototyper (the package name would give "@prototyper/desktop").
+app.setAppLogsPath(join(app.getPath("home"), "Library", "Logs", "Prototyper"));
+watchApp();
+
 app.whenReady().then(async () => {
+  log("start", app.getVersion(), process.platform, process.arch, app.isPackaged ? "packaged" : "dev");
   await mkdir(settings.get().libraryRoot, { recursive: true });
   await preview.start();
   registerIpc();

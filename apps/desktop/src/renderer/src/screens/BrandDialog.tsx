@@ -56,7 +56,11 @@ export function BrandDialog(props: { client: string; onClose: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.client]);
 
-  useEffect(() => logEnd.current?.scrollIntoView({ block: "end" }), [log.length]);
+  useEffect(() => {
+    // Braces matter: scrollIntoView() returns a Promise in recent Chromium, and React
+    // would call a returned value as the effect cleanup.
+    logEnd.current?.scrollIntoView({ block: "end" });
+  }, [log.length]);
 
   const extract = async () => {
     setExtracting(true);
