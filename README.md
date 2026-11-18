@@ -40,13 +40,8 @@ Prototyper keeps every demo in a library, gives the client a link where they edi
 
 **Requirements:** macOS on Apple Silicon, and [Claude Code](https://claude.com/claude-code) installed and logged in. Prototyper uses your own Claude Code: it stores no API keys.
 
-1. Download `Prototyper-<version>-arm64.dmg` from [Releases](https://github.com/Aleloca/prototyper/releases) and drag Prototyper to Applications.
-2. The app is not signed with an Apple Developer certificate yet, so macOS blocks the first launch. Either right-click the app → **Open** → **Open**, or run:
-
-   ```sh
-   xattr -dr com.apple.quarantine /Applications/Prototyper.app
-   ```
-
+1. Download `Prototyper-<version>-arm64.dmg` from [Releases](https://github.com/Aleloca/prototyper/releases) and drag Prototyper to Applications. Release builds are signed and notarized by Apple.
+2. Open it. On first launch it checks that Claude Code is available; set its path in Settings if it isn't found.
 3. To share demos with clients, deploy a share server ([self-hosting guide](docs/self-hosting.md)) and add its domain in **Settings → Share domains**. Everything else works without one.
 
 The interface is available in English and Italian (Settings → Interface language).
