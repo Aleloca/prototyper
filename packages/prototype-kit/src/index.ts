@@ -140,3 +140,31 @@ ${BRAND_TOKENS.map((t) => `   ${t}`).join("\n")}
 
 Don't create other files. Finish with a two-line summary.`;
 }
+
+/** CLAUDE.md for the real project, shipped in the handoff pack. */
+export async function renderHandoffClaudeMd(vars: { demoName: string; clientName: string; language: string; version: number; date: string }): Promise<string> {
+  const tpl = await readFile(join(templatesDir(), "HANDOFF-CLAUDE.md"), "utf8");
+  return render(tpl, {
+    DEMO_NAME: vars.demoName,
+    CLIENT_NAME: vars.clientName,
+    LANGUAGE: vars.language,
+    VERSION: `v${vars.version}`,
+    DATE: vars.date,
+  });
+}
+
+/** Prompt for the developer handoff document, written from the demo's own folder. */
+export function handoffPrompt(outFile: string): string {
+  return `The client approved this prototype. Write ${outFile}: a handoff document for the developers who will build the real site from it. Read src/, CHANGELOG.md, brief.md and the brand guidelines first. Write it in English, concise and practical:
+
+1. Overview: what the site is for, audience, main goal and conversion action.
+2. Sitemap: every page with its purpose.
+3. Page by page: the sections in order, what each contains, interactive behaviour (menus, accordions, forms).
+4. Component inventory: reusable components (header, footer, cards, buttons, forms…) and their variants.
+5. Content: which texts and images are still placeholders or facts to confirm (look for [square brackets] and ph-*.svg images).
+6. Forms and integrations needed (form handling, maps, analytics, cookie consent…).
+7. Technical notes: accessibility, responsive behaviour, SEO basics (titles, descriptions), performance.
+8. Suggested stack for a site of this size, with one sentence of reasoning, and anything that would change the suggestion.
+
+Only write that file. Don't change anything in src/.`;
+}

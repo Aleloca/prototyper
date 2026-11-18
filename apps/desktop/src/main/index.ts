@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { BrowserWindow, Notification, app, dialog, ipcMain, nativeImage, shell } from "electron";
 import { randomUUID } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
-import type { ApplyFeedbackInput, BrandTokens, DemoRef, FeedbackAnchor, GenerateOptions, NewClientInput, NewDemoInput, RunEvent, Settings, ShareInfo, ShareTargetInput } from "../common/types";
+import type { ApplyFeedbackInput, BrandTokens, DemoRef, ExportOptions, FeedbackAnchor, GenerateOptions, NewClientInput, NewDemoInput, RunEvent, Settings, ShareInfo, ShareTargetInput } from "../common/types";
 import { BrandService, type PageCapture } from "./brand";
 import { HIDE_OVERLAYS_JS, pageExtractor, type BrandRaw } from "./brand-extract";
 import { checkClaude, findClaude } from "./claude";
@@ -341,6 +341,24 @@ function registerIpc(): void {
     run().catch((e: unknown) => console.error(e));
   };
   handle("demo:generate", (ref: DemoRef, opts: GenerateOptions) => start(ref, () => demos.generate(ref, opts)));
+  handle("demo:export", async (ref: DemoRef, opts: ExportOptions) => {
+    if (demos.isRunning(ref)) throw new Error("Claude is already working on this demo.");
+    const meta = await library().readMeta(ref);
+    const version = meta.versions.at(-1)?.number ?? 0;
+    const name = `${ref.client}-${ref.demo}-v${version}-${opts.kind === "site" ? "site" : "handoff"}.zip`;
+    let zipPath: string;
+    if (process.env.PROTOTYPER_EXPORT_DIR) zipPath = join(process.env.PROTOTYPER_EXPORT_DIR, name); // tests
+    else {
+      const r = await dialog.showSaveDialog(mainWindow!, { defaultPath: join(app.getPath("downloads"), name), filters: [{ name: "Zip", extensions: ["zip"] }] });
+      if (r.canceled || !r.filePath) return undefined;
+      zipPath = r.filePath;
+    }
+    start(ref, async () => {
+      await demos.exportDemo(ref, opts, zipPath);
+      if (!process.env.PROTOTYPER_EXPORT_DIR && (await stat(zipPath).then(() => true, () => false))) shell.showItemInFolder(zipPath);
+    });
+    return zipPath;
+  });
   handle("demo:references", (ref: DemoRef) => demos.listReferences(ref));
   handle("demo:addReferenceFiles", (ref: DemoRef, paths: string[]) => demos.addReferenceFiles(ref, paths));
   handle("demo:addReferenceImage", (ref: DemoRef, data: Uint8Array, ext: string) => demos.addReferenceImage(ref, data, ext));

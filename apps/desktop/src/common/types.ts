@@ -7,6 +7,8 @@ export interface Settings {
   claudePath?: string;
   /** Model alias passed to `claude --model`; CLI default when empty. */
   model?: string;
+  /** Run Claude without the user's global settings, hooks, plugins and MCP servers. */
+  isolateClaude?: boolean;
   /** Where demos can be published. Admin tokens are stored separately, encrypted. */
   shareTargets?: ShareTarget[];
 }
@@ -195,6 +197,7 @@ export type RunEvent =
   | { type: "version"; number: number; at: string }
   | { type: "published"; version: number; url: string; at: string }
   | { type: "feedback"; version: number; edits: number; notes: number; at: string }
+  | { type: "exported"; kind: "site" | "handoff"; path: string; at: string }
   | { type: "error"; message: string; at: string }
   | { type: "done"; ok: boolean; at: string };
 
@@ -263,4 +266,13 @@ export interface ApplyFeedbackInput {
   extraInstructions: string;
   /** Run Claude on the notes and save the next version; otherwise only apply the edits. */
   generate: boolean;
+}
+
+export interface ExportOptions {
+  /** `site`: the static site only. `handoff`: site + content.json + brand + decisions + CLAUDE.md for developers. */
+  kind: "site" | "handoff";
+  /** Remove data-pt attributes from the HTML. */
+  stripKeys: boolean;
+  /** Ask Claude to write HANDOFF.md (handoff only). */
+  withHandoffDoc: boolean;
 }

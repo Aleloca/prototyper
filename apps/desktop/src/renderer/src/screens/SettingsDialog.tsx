@@ -61,6 +61,16 @@ export function SettingsDialog(props: { claude: ClaudeCheck | undefined; onClose
             )}
           </div>
 
+          <label className="flex items-start gap-2.5">
+            <input type="checkbox" className="mt-0.5" checked={!!settings.isolateClaude} onChange={(e) => void update({ isolateClaude: e.target.checked })} />
+            <span>
+              <span className="font-medium">Isolate Claude from your global configuration</span>
+              <span className="block text-[12px] text-muted">
+                Runs ignore your user-level Claude Code settings, hooks, plugins and MCP servers, for more predictable results. Your login is unaffected.
+              </span>
+            </span>
+          </label>
+
           <ShareTargets />
 
           <div>

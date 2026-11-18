@@ -6,6 +6,7 @@ import {
   SYSTEM_PROMPT,
   buildFromStructurePrompt,
   generatePrompt,
+  handoffPrompt,
   lintFixPrompt,
   revisionPrompt,
 } from "@prototyper/prototype-kit";
@@ -18,6 +19,7 @@ import type {
   FeedbackAnchor,
   FeedbackEdit,
   FeedbackNote,
+  ExportOptions,
   FeedbackRound,
   GenerateOptions,
   LintSummary,
@@ -29,6 +31,7 @@ import type {
   Settings,
   ShareInfo,
 } from "../common/types";
+import { exportZip } from "./export";
 import { applyClientEdits, contentMap, describeValue, feedbackMarkdown, uploadIdOf } from "./feedback";
 import { buildSite, lintSite } from "./build";
 import { describeTool, findClaude, runClaude } from "./claude";
@@ -336,6 +339,40 @@ export class DemoService {
     return this.client(meta.share.targetId).rounds(meta.id);
   }
 
+  // --- export ---------------------------------------------------------------------------------
+
+  /** Build and zip an export. With `withHandoffDoc`, Claude first writes HANDOFF.md (a Claude task). */
+  exportDemo(ref: DemoRef, opts: ExportOptions, zipPath: string): Promise<void> {
+    return this.task(ref, async (signal) => {
+      const library = this.deps.library();
+      const meta = await library.readMeta(ref);
+      const dir = this.dir(ref);
+      await this.record(ref, { type: "user", text: `Export ${opts.kind === "site" ? "the static site" : "the developer handoff pack"}`, at: now() });
+      this.phase(ref, "build", "Building the site…");
+      await buildSite(dir);
+
+      let handoffDoc: string | undefined;
+      if (opts.kind === "handoff" && opts.withHandoffDoc) {
+        const rel = posix.join(".prototyper", "export", "HANDOFF.md");
+        await mkdir(join(dir, ".prototyper", "export"), { recursive: true });
+        const r = await this.claudeStep(ref, handoffPrompt(rel), signal);
+        if (!r.ok) return false;
+        if (await stat(join(dir, rel)).then(() => true, () => false)) handoffDoc = join(dir, rel);
+        else await this.record(ref, { type: "error", message: "Claude did not write HANDOFF.md; exporting without it.", at: now() });
+      }
+
+      this.phase(ref, "build", "Creating the zip…");
+      await exportZip(
+        { demoDir: dir, brandDir: library.brandDir(ref.client), meta, clientName: (await library.getClient(ref.client)).name, ...(handoffDoc ? { handoffDoc } : {}) },
+        opts,
+        zipPath,
+      );
+      if (opts.kind === "handoff") await library.updateMeta(ref, (m) => void (m.status = "exported"));
+      await this.record(ref, { type: "exported", kind: opts.kind, path: zipPath, at: now() });
+      return true;
+    });
+  }
+
   // --- client feedback --------------------------------------------------------------------------
 
   private roundDir(ref: DemoRef, versionNumber: number): string {
@@ -603,6 +640,7 @@ export class DemoService {
           appendSystemPrompt: SYSTEM_PROMPT,
           addDirs: [library.brandDir(ref.client)],
           ...(settings.model ? { model: settings.model } : {}),
+          ...(settings.isolateClaude ? { isolated: true } : {}),
           signal,
         },
         (e) => {

@@ -2,7 +2,7 @@
 
 A macOS app for building landing-page and small-site **demos with Claude Code**, sharing them with clients through a link where they can **edit texts, swap images and leave notes**, and iterating version after version until the design and content are approved.
 
-> **Status: early development.** The full loop works: generate a demo, share it, the client edits and comments, import the feedback and generate the next version on the same link. Brand extraction from the client's website and reference screenshots work too; export is next. See [docs/DESIGN.md](docs/DESIGN.md) for the design and the roadmap.
+> **Status: early development.** The full loop works: generate a demo, share it, the client edits and comments, import the feedback and generate the next version on the same link. Brand extraction from the client's website, reference screenshots and export (static site or a developer handoff pack) work too. A packaged macOS release is next. See [docs/DESIGN.md](docs/DESIGN.md) for the design and the roadmap.
 
 ## How it works
 

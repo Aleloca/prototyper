@@ -141,6 +141,7 @@ export class BrandService {
         resume: false,
         appendSystemPrompt: SYSTEM_PROMPT.replace("Follow CLAUDE.md in the working directory exactly, especially the data-pt content contract.\n", ""),
         ...(settings.model ? { model: settings.model } : {}),
+        ...(settings.isolateClaude ? { isolated: true } : {}),
         ...(signal ? { signal } : {}),
       },
       (e) => {

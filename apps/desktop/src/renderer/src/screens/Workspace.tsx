@@ -4,6 +4,7 @@ import { ReferencesPanel } from "../components/ReferencesPanel";
 import { api } from "../api";
 import { Modal } from "../components/Modal";
 import { errorMessage, timeAgo } from "../format";
+import { ExportDialog } from "./ExportDialog";
 import { FeedbackDialog } from "./FeedbackDialog";
 import { ShareDialog } from "./ShareDialog";
 
@@ -24,6 +25,7 @@ export function Workspace(props: { demoRef: DemoRef; autostart?: GenerateOptions
   const [saving, setSaving] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [reviewing, setReviewing] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const started = useRef(false);
 
   const reload = useCallback(() => void api.demo.detail(demoRef).then(setDetail), [demoRef]);
@@ -111,6 +113,9 @@ export function Workspace(props: { demoRef: DemoRef; autostart?: GenerateOptions
           <button className="btn btn-ghost" onClick={() => void api.demo.openTerminal(demoRef)} title="Continue this demo's Claude session in Terminal">
             Terminal
           </button>
+          <button className="btn btn-ghost" disabled={!detail.hasPages || running} onClick={() => setExporting(true)}>
+            Export
+          </button>
           <button className="btn" disabled={!detail.unsavedChanges || running} onClick={() => setSaving(true)}>
             Save version
           </button>
@@ -180,6 +185,18 @@ export function Workspace(props: { demoRef: DemoRef; autostart?: GenerateOptions
         </aside>
       </div>
 
+      {exporting && (
+        <ExportDialog
+          demoRef={demoRef}
+          detail={detail}
+          onClose={() => setExporting(false)}
+          onStarted={() => {
+            setExporting(false);
+            setTab("claude");
+            setPhase("Exporting…");
+          }}
+        />
+      )}
       {reviewing && (
         <FeedbackDialog
           demoRef={demoRef}
@@ -396,6 +413,8 @@ function EventItem({ event: e }: { event: RunEvent }) {
           Imported client feedback on v{e.version}: {e.edits} edit(s) applied, {e.notes} note(s) for Claude
         </div>
       );
+    case "exported":
+      return <div className="text-[12px] font-medium text-ok">Exported the {e.kind === "site" ? "static site" : "handoff pack"}: {e.path}</div>;
     case "published":
       return <div className="text-[12px] font-medium text-accent">Published v{e.version} for client review</div>;
     case "error":

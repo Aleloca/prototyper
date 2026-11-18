@@ -4,3 +4,4 @@ dist/
 .prototyper/log.jsonl
 .prototyper/thumb.png
 .prototyper/build-*/
+.prototyper/export/
