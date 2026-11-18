@@ -1,6 +1,11 @@
-import { contextBridge, ipcRenderer } from "electron";
+import { contextBridge, ipcRenderer, webUtils } from "electron";
 import type {
   ApplyFeedbackInput,
+  BrandEventMessage,
+  BrandInfo,
+  BrandTokens,
+  GenerateOptions,
+  ReferenceItem,
   ClaudeCheck,
   FeedbackRound,
   ClientInfo,
@@ -37,6 +42,19 @@ const api = {
     testTarget: (id: string) => invoke<boolean>("share:testTarget", id),
     poll: () => invoke<void>("share:poll"),
   },
+  brand: {
+    info: (client: string) => invoke<BrandInfo>("brand:info", client),
+    extract: (client: string, website: string) => invoke<boolean>("brand:extract", client, website),
+    saveTokens: (client: string, tokens: BrandTokens) => invoke<void>("brand:saveTokens", client, tokens),
+    saveMd: (client: string, text: string) => invoke<void>("brand:saveMd", client, text),
+  },
+  /** Absolute path of a file dropped or picked in the renderer. */
+  pathForFile: (file: File) => webUtils.getPathForFile(file),
+  onBrandEvent: (cb: (msg: BrandEventMessage) => void) => {
+    const listener = (_: unknown, msg: BrandEventMessage) => cb(msg);
+    ipcRenderer.on("brand:event", listener);
+    return () => void ipcRenderer.off("brand:event", listener);
+  },
   library: {
     list: () => invoke<LibraryClient[]>("library:list"),
     createClient: (input: NewClientInput) => invoke<ClientInfo>("library:createClient", input),
@@ -47,7 +65,13 @@ const api = {
     log: (ref: DemoRef) => invoke<RunEvent[]>("demo:log", ref),
     open: (ref: DemoRef) => invoke<void>("demo:open", ref),
     close: (ref: DemoRef) => invoke<void>("demo:close", ref),
-    generate: (ref: DemoRef, opts: { structureFirst: boolean }) => invoke<void>("demo:generate", ref, opts),
+    generate: (ref: DemoRef, opts: GenerateOptions) => invoke<void>("demo:generate", ref, opts),
+    references: (ref: DemoRef) => invoke<ReferenceItem[]>("demo:references", ref),
+    addReferenceFiles: (ref: DemoRef, paths: string[]) => invoke<void>("demo:addReferenceFiles", ref, paths),
+    addReferenceImage: (ref: DemoRef, data: Uint8Array, ext: string) => invoke<void>("demo:addReferenceImage", ref, data, ext),
+    addReferenceUrl: (ref: DemoRef, url: string, note: string) => invoke<void>("demo:addReferenceUrl", ref, url, note),
+    setReferenceNote: (ref: DemoRef, file: string, note: string) => invoke<void>("demo:setReferenceNote", ref, file, note),
+    removeReference: (ref: DemoRef, file: string) => invoke<void>("demo:removeReference", ref, file),
     approveStructure: (ref: DemoRef, feedback: string) => invoke<void>("demo:approveStructure", ref, feedback),
     chat: (ref: DemoRef, text: string) => invoke<void>("demo:chat", ref, text),
     cancel: (ref: DemoRef) => invoke<void>("demo:cancel", ref),

@@ -104,3 +104,39 @@ Address every note, then:
 - prepend a "## v${nextVersion}" section to CHANGELOG.md: a short, client-friendly list of what changed, in the content language;
 - write ${roundDir}/replies.json as described in CLAUDE.md, with one entry for every note id.${extra}`;
 }
+
+/** Token names every brand defines; the starter's tokens.css and the brand editor use the same set. */
+export const BRAND_TOKENS = [
+  "--color-primary",
+  "--color-primary-contrast",
+  "--color-accent",
+  "--color-ink",
+  "--color-muted",
+  "--color-surface",
+  "--color-surface-alt",
+  "--color-line",
+  "--font-heading",
+  "--font-body",
+  "--radius-brand",
+] as const;
+
+/** Prompt for turning raw data extracted from a client's website into brand guidelines. */
+export function brandPrompt(clientName: string, website: string): string {
+  return `You are in the brand folder of the client "${clientName}" (${website}).
+brand.json holds design data extracted from their live website: colors weighted by how much they are used and in which role, fonts, buttons, radii, shadows, logo, and samples of their copy. screenshots/ holds desktop and mobile screenshots. Look at the screenshots: they matter more than the numbers.
+
+Write two files here:
+
+1. BRAND.md — concise, practical guidelines a designer would use to build new pages that clearly belong to this brand:
+   - Palette: each color with hex and its role (primary, accent, text, muted text, surfaces, lines), plus how they are combined.
+   - Typography: heading and body fonts, weights, scale, case and spacing habits. If a font is not on Google Fonts, pick the closest Google Font and say so. End the section with the exact <link> tag that loads the fonts from Google Fonts.
+   - Shapes and components: radii, shadows, button styles, how cards and sections look, imagery style.
+   - Tone of voice, from their copy: formal or informal, "tu" or "lei"/"voi" for Italian, typical phrases, what to avoid.
+   - Logo: which file in this folder is the logo (logo.svg / logo.png…), and on which backgrounds it works.
+   - Don'ts.
+2. tokens.css — a Tailwind v4 @theme block defining exactly these variables (keep the names, choose the values from the brand):
+${BRAND_TOKENS.map((t) => `   ${t}`).join("\n")}
+   --color-primary-contrast is the text color on primary backgrounds. Font variables are full font-family stacks.
+
+Don't create other files. Finish with a two-line summary.`;
+}

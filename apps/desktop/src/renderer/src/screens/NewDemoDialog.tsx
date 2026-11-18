@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { DemoRef, LibraryClient } from "@common/types";
+import type { DemoRef, GenerateOptions, LibraryClient } from "@common/types";
 import { api } from "../api";
 import { Modal } from "../components/Modal";
 import { errorMessage } from "../format";
@@ -11,7 +11,7 @@ const DEFAULT_PAGES = ["Home"];
 export function NewDemoDialog(props: {
   clients: LibraryClient[];
   onClose: () => void;
-  onCreated: (ref: DemoRef, structureFirst: boolean) => void;
+  onCreated: (ref: DemoRef, options: GenerateOptions) => void;
 }) {
   const [client, setClient] = useState(props.clients[0]?.slug ?? NEW_CLIENT);
   const [clientName, setClientName] = useState("");
@@ -22,10 +22,17 @@ export function NewDemoDialog(props: {
   const [pageDraft, setPageDraft] = useState("");
   const [brief, setBrief] = useState("");
   const [structureFirst, setStructureFirst] = useState(false);
+  const [extractBrand, setExtractBrand] = useState(true);
+  const [refFiles, setRefFiles] = useState<{ path: string; name: string }[]>([]);
+  const [refUrls, setRefUrls] = useState("");
+  const [over, setOver] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | undefined>();
 
   const isNewClient = client === NEW_CLIENT;
+  const existing = props.clients.find((c) => c.slug === client);
+  const hasBrand = !isNewClient && !!existing?.hasBrand;
+  const brandSite = isNewClient ? website.trim() : existing?.website ?? "";
   const canCreate = name.trim() && brief.trim() && (!isNewClient || clientName.trim()) && pages.length > 0;
 
   const addPage = () => {
@@ -39,8 +46,20 @@ export function NewDemoDialog(props: {
     setError(undefined);
     try {
       const slug = isNewClient ? (await api.library.createClient({ name: clientName, website })).slug : client;
-      const meta = await api.demo.create({ client: slug, name, language, pages, brief, structureFirst });
-      props.onCreated({ client: slug, demo: meta.slug }, structureFirst);
+      const meta = await api.demo.create({
+        client: slug,
+        name,
+        language,
+        pages,
+        brief,
+        structureFirst,
+        references: refFiles.map((f) => ({ path: f.path, note: "" })),
+      });
+      const urls = refUrls.split(/\s+/).map((u) => u.trim()).filter(Boolean);
+      props.onCreated(
+        { client: slug, demo: meta.slug },
+        { structureFirst, extractBrand: !hasBrand && !!brandSite && extractBrand, ...(urls.length ? { referenceUrls: urls } : {}) },
+      );
     } catch (e) {
       setError(errorMessage(e));
       setBusy(false);
@@ -140,6 +159,63 @@ export function NewDemoDialog(props: {
             onChange={(e) => setBrief(e.target.value)}
             placeholder="Who the client is, who the site is for, what it must achieve, key messages, tone… Paste emails or meeting notes as they are."
           />
+        </div>
+
+        <div className="col-span-2">
+          <span className="label">Brand</span>
+          {hasBrand ? (
+            <p className="text-muted">Uses the brand saved for {existing?.name}. Edit it from the library (Brand).</p>
+          ) : brandSite ? (
+            <label className="flex items-start gap-2.5">
+              <input type="checkbox" className="mt-0.5" checked={extractBrand} onChange={(e) => setExtractBrand(e.target.checked)} />
+              <span>
+                <span className="font-medium">Extract the brand from {brandSite.replace(/^https?:\/\//, "")} first</span>
+                <span className="block text-muted">Colors, fonts, logo and tone of voice from the client's current site. Adds a couple of minutes.</span>
+              </span>
+            </label>
+          ) : (
+            <p className="text-muted">No website for this client: Claude will propose a style from the brief.</p>
+          )}
+        </div>
+
+        <div className="col-span-2">
+          <span className="label">References (optional)</span>
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              setOver(true);
+            }}
+            onDragLeave={() => setOver(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setOver(false);
+              const files = Array.from(e.dataTransfer.files)
+                .filter((f) => f.type.startsWith("image/"))
+                .map((f) => ({ path: api.pathForFile(f), name: f.name }));
+              setRefFiles((prev) => [...prev, ...files.filter((f) => f.path && !prev.some((p) => p.path === f.path))]);
+            }}
+            className={`rounded-md border-2 border-dashed px-3 py-3 text-center ${over ? "border-accent bg-accent-soft" : "border-line"}`}
+          >
+            {refFiles.length ? (
+              <div className="flex flex-wrap justify-center gap-1.5">
+                {refFiles.map((f) => (
+                  <span key={f.path} className="inline-flex items-center gap-1 rounded bg-canvas py-0.5 pr-1 pl-2 text-[12px]">
+                    {f.name}
+                    <button className="rounded px-1 hover:bg-black/5" aria-label={`Remove ${f.name}`} onClick={() => setRefFiles(refFiles.filter((x) => x.path !== f.path))}>×</button>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <span className="text-muted">Drop screenshots of pages you like</span>
+            )}
+          </div>
+          <input
+            className="input mt-2"
+            value={refUrls}
+            onChange={(e) => setRefUrls(e.target.value)}
+            placeholder="…or websites to capture, separated by spaces: https://a.com https://b.com"
+          />
+          <p className="mt-1 text-[12px] text-faint">You can add notes to each reference later, in the demo's References tab.</p>
         </div>
 
         <label className="col-span-2 flex items-start gap-2.5">

@@ -102,6 +102,7 @@ export interface DemoSummary extends DemoMeta {
 
 export interface LibraryClient extends ClientInfo {
   demos: DemoSummary[];
+  hasBrand: boolean;
 }
 
 export interface NewClientInput {
@@ -116,6 +117,49 @@ export interface NewDemoInput {
   pages: string[];
   brief: string;
   structureFirst: boolean;
+  /** Local image files to add as references, with optional notes. */
+  references?: { path: string; note: string }[];
+}
+
+/** Options for the first generation of a demo. */
+export interface GenerateOptions {
+  structureFirst: boolean;
+  /** Extract the client's brand from their website before generating. */
+  extractBrand?: boolean;
+  /** Websites to capture as reference screenshots before generating. */
+  referenceUrls?: string[];
+}
+
+/** Brand token values by CSS variable name, e.g. { "--color-primary": "#1f4fd6" }. */
+export type BrandTokens = Record<string, string>;
+
+export interface BrandInfo {
+  client: string;
+  clientName: string;
+  website?: string;
+  hasBrand: boolean;
+  tokens: BrandTokens;
+  brandMd: string;
+  extractedAt?: string;
+  pages?: string[];
+  /** data URLs */
+  logo?: string;
+  screenshots: string[];
+}
+
+export interface BrandEventMessage {
+  client: string;
+  event: RunEvent;
+}
+
+export interface ReferenceItem {
+  file: string;
+  note: string;
+  /** Website the screenshot was taken from, if any. */
+  source?: string;
+  addedAt: string;
+  /** data URL thumbnail */
+  thumbnail?: string;
 }
 
 export interface LintSummary {
@@ -137,7 +181,7 @@ export interface DemoDetail {
   lint?: LintSummary;
 }
 
-export type RunPhase = "claude" | "lint-fix" | "build" | "lint" | "commit";
+export type RunPhase = "claude" | "lint-fix" | "build" | "lint" | "commit" | "brand" | "references";
 
 /** Streamed from main to renderer while a demo task runs; also persisted to the demo log. */
 export type RunEvent =

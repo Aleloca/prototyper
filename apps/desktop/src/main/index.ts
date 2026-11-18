@@ -2,9 +2,12 @@ import { execFile } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
-import { BrowserWindow, Notification, app, dialog, ipcMain, shell } from "electron";
+import { BrowserWindow, Notification, app, dialog, ipcMain, nativeImage, shell } from "electron";
 import { randomUUID } from "node:crypto";
-import type { ApplyFeedbackInput, DemoRef, FeedbackAnchor, NewClientInput, NewDemoInput, RunEvent, Settings, ShareInfo, ShareTargetInput } from "../common/types";
+import { readFile, stat } from "node:fs/promises";
+import type { ApplyFeedbackInput, BrandTokens, DemoRef, FeedbackAnchor, GenerateOptions, NewClientInput, NewDemoInput, RunEvent, Settings, ShareInfo, ShareTargetInput } from "../common/types";
+import { BrandService, type PageCapture } from "./brand";
+import { HIDE_OVERLAYS_JS, pageExtractor, type BrandRaw } from "./brand-extract";
 import { checkClaude, findClaude } from "./claude";
 import { DemoService } from "./demos";
 import { Library } from "./library";
@@ -49,6 +52,13 @@ const send = (channel: string, payload: unknown) => {
 
 const library = () => new Library(settings.get().libraryRoot);
 
+const brand = new BrandService({
+  library,
+  settings: () => settings.get(),
+  capturePage,
+  thumbnail,
+});
+
 const demos = new DemoService({
   library,
   settings: () => settings.get(),
@@ -58,6 +68,9 @@ const demos = new DemoService({
   capture: captureThumbnail,
   shareClient,
   captureArea,
+  brand,
+  screenshotUrl: async (url) => (await capturePage(url, { mobile: false, extract: false })).desktop,
+  thumbnail,
   notify: (ref, title, body) => {
     if (!Notification.isSupported()) return;
     const n = new Notification({ title, body });
@@ -71,12 +84,117 @@ const demos = new DemoService({
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+const DESKTOP_UA =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
+
+/**
+ * Render a website offscreen in a throwaway session: hide cookie banners, scroll through
+ * to trigger lazy loading, run the brand extractor, take full-page screenshots.
+ */
+async function capturePage(url: string, opts: { mobile: boolean; extract?: boolean }): Promise<PageCapture> {
+  const win = new BrowserWindow({
+    show: false,
+    width: 1440,
+    height: 900,
+    // A dedicated session keeps the client's cookies away from the app; it is cleared after each capture.
+    // (In-memory partitions hang on load in offscreen windows, hence a persistent one.)
+    webPreferences: { offscreen: true, sandbox: true, backgroundThrottling: false, partition: "persist:capture" },
+  });
+  win.webContents.setAudioMuted(true);
+  win.webContents.setFrameRate(30);
+  win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  const work = async (): Promise<PageCapture> => {
+    // Entrance animations (content fading in from opacity 0) never finish in a hidden window unless
+    // it keeps rendering; asking for reduced motion makes most sites show content immediately.
+    // CDP needs a loaded page before it answers, hence about:blank first.
+    await win.loadURL("about:blank");
+    try {
+      win.webContents.debugger.attach("1.3");
+      await Promise.race([
+        win.webContents.debugger.sendCommand("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: "reduce" }] }),
+        sleep(3000),
+      ]);
+    } catch {
+      /* best effort */
+    }
+    await Promise.race([
+      win.loadURL(url, { userAgent: DESKTOP_UA }),
+      sleep(30_000).then(() => {
+        throw new Error(`Timed out loading ${url}`);
+      }),
+    ]).catch((e: Error) => {
+      // Some sites never fire "load" (long-polling, trackers): keep going if the DOM is there.
+      if (!/Timed out|ERR_ABORTED/.test(e.message)) throw e;
+    });
+    await sleep(1200);
+    await win.webContents.executeJavaScript(HIDE_OVERLAYS_JS);
+    await win.webContents.executeJavaScript(
+      "(async () => { const h = Math.min(document.documentElement.scrollHeight, 9000); for (let y = 0; y < h; y += 700) { scrollTo(0, y); await new Promise(r => setTimeout(r, 120)); } scrollTo(0, 0); })()",
+    );
+    await sleep(600);
+    const raw = (opts.extract ?? true)
+      ? ((await win.webContents.executeJavaScript(`(${pageExtractor.toString()})()`)) as BrandRaw)
+      : ({} as BrandRaw);
+    const desktop = await fullPage(win, 1440, 5000);
+    let mobile: Buffer | undefined;
+    if (opts.mobile) mobile = await fullPage(win, 390, 4000);
+    return { raw, desktop, ...(mobile ? { mobile } : {}) };
+  };
+  try {
+    return await Promise.race([
+      work(),
+      sleep(90_000).then((): never => {
+        throw new Error(`Capturing ${url} took too long.`);
+      }),
+    ]);
+  } finally {
+    const session = win.webContents.session;
+    win.destroy();
+    await session.clearStorageData().catch(() => {});
+  }
+}
+
+/** Resize the offscreen window to the page height (capped) and capture it as JPEG. */
+async function fullPage(win: BrowserWindow, width: number, maxHeight: number): Promise<Buffer> {
+  win.setSize(width, 900);
+  await sleep(500);
+  const h = (await win.webContents.executeJavaScript("document.documentElement.scrollHeight")) as number;
+  const height = Math.max(600, Math.min(h, maxHeight));
+  win.setSize(width, height);
+  await sleep(300);
+  // An offscreen window does not repaint on resize by itself: force a frame and wait for it.
+  const painted = new Promise<void>((resolve) => win.webContents.once("paint", () => resolve()));
+  win.webContents.invalidate();
+  await Promise.race([painted, sleep(3000)]);
+  await sleep(600);
+  const image = await win.webContents.capturePage({ x: 0, y: 0, width, height });
+  return image.toJPEG(80);
+}
+
+/** Small data-URL preview of an image file. SVGs are returned as they are. */
+async function thumbnail(file: string, width: number): Promise<string | undefined> {
+  if (file.toLowerCase().endsWith(".svg")) {
+    const svg = await readFile(file).catch(() => undefined);
+    return svg ? `data:image/svg+xml;base64,${svg.toString("base64")}` : undefined;
+  }
+  const img = nativeImage.createFromPath(file);
+  if (img.isEmpty()) {
+    const size = await stat(file).then((s) => s.size, () => Infinity);
+    if (size > 2_000_000) return undefined;
+    const ext = file.split(".").pop()?.toLowerCase();
+    const mime = ext === "webp" ? "image/webp" : ext === "gif" ? "image/gif" : ext === "ico" ? "image/x-icon" : "image/png";
+    return `data:${mime};base64,${(await readFile(file)).toString("base64")}`;
+  }
+  const resized = img.getSize().width > width ? img.resize({ width }) : img;
+  return `data:image/jpeg;base64,${resized.toJPEG(78).toString("base64")}`;
+}
+
 /**
  * Screenshot the area a client note points at: scroll the anchored element into view,
  * mark the note's exact spot, crop around it.
  */
 async function captureArea(pageUrl: string, anchor: FeedbackAnchor, outPath: string): Promise<void> {
-  const win = new BrowserWindow({ show: false, width: 1280, height: 900, webPreferences: { offscreen: true, sandbox: true } });
+  const win = new BrowserWindow({ show: false, width: 1280, height: 900, webPreferences: { offscreen: true, sandbox: true, backgroundThrottling: false } });
   try {
     await win.loadURL(pageUrl);
     await sleep(500);
@@ -117,7 +235,7 @@ async function captureThumbnail(url: string, outPath: string): Promise<void> {
     show: false,
     width: 1280,
     height: 800,
-    webPreferences: { offscreen: true, sandbox: true, javascript: true },
+    webPreferences: { offscreen: true, sandbox: true, javascript: true, backgroundThrottling: false },
   });
   try {
     await win.loadURL(url);
@@ -222,7 +340,27 @@ function registerIpc(): void {
     if (demos.isRunning(ref)) throw new Error("Claude is already working on this demo.");
     run().catch((e: unknown) => console.error(e));
   };
-  handle("demo:generate", (ref: DemoRef, opts: { structureFirst: boolean }) => start(ref, () => demos.generate(ref, opts)));
+  handle("demo:generate", (ref: DemoRef, opts: GenerateOptions) => start(ref, () => demos.generate(ref, opts)));
+  handle("demo:references", (ref: DemoRef) => demos.listReferences(ref));
+  handle("demo:addReferenceFiles", (ref: DemoRef, paths: string[]) => demos.addReferenceFiles(ref, paths));
+  handle("demo:addReferenceImage", (ref: DemoRef, data: Uint8Array, ext: string) => demos.addReferenceImage(ref, data, ext));
+  handle("demo:addReferenceUrl", (ref: DemoRef, url: string, note: string) => demos.addReferenceUrl(ref, url, note));
+  handle("demo:setReferenceNote", (ref: DemoRef, file: string, note: string) => demos.setReferenceNote(ref, file, note));
+  handle("demo:removeReference", (ref: DemoRef, file: string) => demos.removeReference(ref, file));
+
+  const extracting = new Set<string>();
+  handle("brand:info", (client: string) => brand.info(client));
+  handle("brand:extract", async (client: string, website: string) => {
+    if (extracting.has(client)) throw new Error("Brand extraction is already running for this client.");
+    extracting.add(client);
+    try {
+      return await brand.extract(client, website, (event) => send("brand:event", { client, event }));
+    } finally {
+      extracting.delete(client);
+    }
+  });
+  handle("brand:saveTokens", (client: string, tokens: BrandTokens) => brand.saveTokens(client, tokens));
+  handle("brand:saveMd", (client: string, text: string) => brand.saveBrandMd(client, text));
   handle("demo:approveStructure", (ref: DemoRef, feedback: string) => start(ref, () => demos.approveStructure(ref, feedback)));
   handle("demo:chat", (ref: DemoRef, text: string) => start(ref, () => demos.chat(ref, text)));
   handle("demo:cancel", (ref: DemoRef) => demos.cancel(ref));

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import type { DemoRef, DemoStatus, DemoSummary, LibraryClient } from "@common/types";
+import type { DemoRef, DemoStatus, DemoSummary, GenerateOptions, LibraryClient } from "@common/types";
+import { BrandDialog } from "./BrandDialog";
 import { api } from "../api";
 import { timeAgo } from "../format";
 import { NewDemoDialog } from "./NewDemoDialog";
@@ -20,10 +21,11 @@ const STATUS_CLASS: Record<DemoStatus, string> = {
   exported: "bg-ok/15 text-ok",
 };
 
-export function Library(props: { onOpen: (ref: DemoRef, autostart?: { structureFirst: boolean }) => void; onSettings: () => void }) {
+export function Library(props: { onOpen: (ref: DemoRef, autostart?: GenerateOptions) => void; onSettings: () => void }) {
   const [clients, setClients] = useState<LibraryClient[] | undefined>();
   const [newDemo, setNewDemo] = useState(false);
   const [query, setQuery] = useState("");
+  const [brandFor, setBrandFor] = useState<string | undefined>();
 
   const load = useCallback(() => void api.library.list().then(setClients), []);
   useEffect(load, [load]);
@@ -63,6 +65,9 @@ export function Library(props: { onOpen: (ref: DemoRef, autostart?: { structureF
                   <h2 className="text-[15px] font-semibold">{client.name}</h2>
                   {client.website && <span className="truncate text-faint">{client.website.replace(/^https?:\/\//, "")}</span>}
                   <span className="text-faint">· {client.demos.length} {client.demos.length === 1 ? "demo" : "demos"}</span>
+                  <button className="btn btn-ghost ml-auto py-1" onClick={() => setBrandFor(client.slug)}>
+                    {client.hasBrand ? "Brand" : "Add brand"}
+                  </button>
                 </div>
                 {client.demos.length === 0 ? (
                   <p className="text-muted">No demos yet.</p>
@@ -83,9 +88,18 @@ export function Library(props: { onOpen: (ref: DemoRef, autostart?: { structureF
         <NewDemoDialog
           clients={clients ?? []}
           onClose={() => setNewDemo(false)}
-          onCreated={(ref, structureFirst) => {
+          onCreated={(ref, options) => {
             setNewDemo(false);
-            props.onOpen(ref, { structureFirst });
+            props.onOpen(ref, options);
+          }}
+        />
+      )}
+      {brandFor && (
+        <BrandDialog
+          client={brandFor}
+          onClose={() => {
+            setBrandFor(undefined);
+            load();
           }}
         />
       )}

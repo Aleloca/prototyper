@@ -50,7 +50,8 @@ export class Library {
         demos.push(thumbnail ? { ...meta, thumbnail } : meta);
       }
       demos.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-      clients.push({ ...info, demos });
+      const hasBrand = await readFile(join(clientsDir, slug, "brand", "tokens.css")).then(() => true, () => false);
+      clients.push({ ...info, demos, hasBrand });
     }
     clients.sort((a, b) => a.name.localeCompare(b.name));
     return clients;
@@ -75,6 +76,12 @@ export class Library {
   async getClient(slug: string): Promise<ClientInfo> {
     const info = await readJson<ClientInfo>(join(this.clientDir(slug), "client.json"));
     if (!info) throw new Error(`Unknown client: ${slug}`);
+    return info;
+  }
+
+  async updateClient(slug: string, patch: Partial<Pick<ClientInfo, "name" | "website">>): Promise<ClientInfo> {
+    const info = { ...(await this.getClient(slug)), ...patch };
+    await writeJson(join(this.clientDir(slug), "client.json"), info);
     return info;
   }
 

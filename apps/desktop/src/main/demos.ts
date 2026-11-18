@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { watch, type FSWatcher } from "node:fs";
-import { appendFile, mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { appendFile, copyFile, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { join, posix } from "node:path";
 import {
   SYSTEM_PROMPT,
@@ -19,7 +19,9 @@ import type {
   FeedbackEdit,
   FeedbackNote,
   FeedbackRound,
+  GenerateOptions,
   LintSummary,
+  ReferenceItem,
   NewDemoInput,
   RoundSummary,
   RunEvent,
@@ -30,7 +32,9 @@ import type {
 import { applyClientEdits, contentMap, describeValue, feedbackMarkdown, uploadIdOf } from "./feedback";
 import { buildSite, lintSite } from "./build";
 import { describeTool, findClaude, runClaude } from "./claude";
+import type { BrandService } from "./brand";
 import { DemoRepo } from "./git";
+import { References } from "./references";
 import { changelogFor, type ServerFeedback, type ShareClient } from "./share";
 import type { Library } from "./library";
 import type { PreviewServer } from "./preview";
@@ -53,6 +57,11 @@ export interface DemoServiceDeps {
   captureArea?: (pageUrl: string, anchor: FeedbackAnchor, outPath: string) => Promise<void>;
   /** System notification. */
   notify?: (ref: DemoRef, title: string, body: string) => void;
+  brand?: BrandService;
+  /** Full-page JPEG screenshot of a website, for references (needs Electron). */
+  screenshotUrl?: (url: string) => Promise<Buffer>;
+  /** Data-URL thumbnail of an image file (needs Electron). */
+  thumbnail?: (file: string, width: number) => Promise<string | undefined>;
 }
 
 interface Running {
@@ -75,11 +84,83 @@ export class DemoService {
   }
 
   async create(input: NewDemoInput): Promise<DemoMeta> {
-    const meta = await this.deps.library().createDemo(input);
-    const repo = new DemoRepo(this.dir({ client: meta.clientSlug, demo: meta.slug }));
+    const library = this.deps.library();
+    const meta = await library.createDemo(input);
+    const ref = { client: meta.clientSlug, demo: meta.slug };
+    const dir = this.dir(ref);
+    await this.useClientBrand(ref);
+    const refs = this.references(ref);
+    for (const r of input.references ?? []) await refs.addFile(r.path, r.note);
+    const repo = new DemoRepo(dir);
     await repo.init();
     await repo.commitAll("Create demo");
     return meta;
+  }
+
+  /** Copy the client's brand tokens into the demo, if the client has a brand. Returns whether it did. */
+  private async useClientBrand(ref: DemoRef): Promise<boolean> {
+    const tokens = join(this.deps.library().brandDir(ref.client), "tokens.css");
+    if (!(await stat(tokens).then(() => true, () => false))) return false;
+    await copyFile(tokens, join(this.dir(ref), "src", "tokens.css"));
+    return true;
+  }
+
+  // --- references -----------------------------------------------------------------------------
+
+  private references(ref: DemoRef): References {
+    return new References(this.dir(ref), this.deps.thumbnail);
+  }
+
+  listReferences = (ref: DemoRef): Promise<ReferenceItem[]> => this.references(ref).list();
+
+  async addReferenceFiles(ref: DemoRef, paths: string[]): Promise<void> {
+    for (const p of paths) await this.references(ref).addFile(p);
+  }
+
+  async addReferenceImage(ref: DemoRef, data: Uint8Array, ext: string): Promise<void> {
+    const clean = `.${ext.replace(/^\./, "").toLowerCase()}`;
+    if (![".png", ".jpg", ".jpeg", ".webp", ".gif"].includes(clean)) throw new Error("Unsupported image type.");
+    await this.references(ref).addBuffer(Buffer.from(data), clean, "pasted");
+  }
+
+  async addReferenceUrl(ref: DemoRef, url: string, note = ""): Promise<void> {
+    if (!this.deps.screenshotUrl) throw new Error("Screenshots are not available.");
+    const u = new URL(url.trim().includes("://") ? url.trim() : `https://${url.trim()}`);
+    if (u.protocol !== "https:" && u.protocol !== "http:") throw new Error("Only http(s) addresses can be captured.");
+    const jpg = await this.deps.screenshotUrl(u.toString());
+    await this.references(ref).addBuffer(jpg, ".jpg", u.hostname.replace(/^www\./, ""), note, u.toString());
+  }
+
+  setReferenceNote = (ref: DemoRef, file: string, note: string) => this.references(ref).setNote(file, note);
+  removeReference = (ref: DemoRef, file: string) => this.references(ref).remove(file);
+
+  /** Extract the client's brand from a website (a client-level task, outside any demo). */
+  async extractBrand(client: string, website: string, emit: (e: RunEvent) => void): Promise<boolean> {
+    if (!this.deps.brand) throw new Error("Brand extraction is not available.");
+    return this.deps.brand.extract(client, website, emit);
+  }
+
+  /** Steps run before the first generation: brand extraction and reference screenshots. */
+  private async prepare(ref: DemoRef, opts: GenerateOptions, signal: AbortSignal): Promise<void> {
+    if (opts.extractBrand && this.deps.brand) {
+      const client = await this.deps.library().getClient(ref.client);
+      if (client.website) {
+        const ok = await this.deps.brand
+          .extract(ref.client, client.website, (e) => (e.type === "phase" ? this.deps.emit(ref, e) : void this.record(ref, e)), signal)
+          .catch(async (e: Error) => {
+            await this.record(ref, { type: "error", message: `Brand extraction failed: ${e.message}. Continuing without it.`, at: now() });
+            return false;
+          });
+        if (ok && (await this.useClientBrand(ref))) {
+          await this.record(ref, { type: "assistant", text: `Using the brand extracted from ${client.website}.`, at: now() });
+        }
+      }
+    }
+    for (const url of opts.referenceUrls ?? []) {
+      if (signal.aborted) return;
+      this.phase(ref, "references", `Capturing ${url}…`);
+      await this.addReferenceUrl(ref, url).catch((e: Error) => this.record(ref, { type: "error", message: `Could not capture ${url}: ${e.message}`, at: now() }));
+    }
   }
 
   async detail(ref: DemoRef): Promise<DemoDetail> {
@@ -154,8 +235,10 @@ export class DemoService {
   }
 
   /** First generation. With `structureFirst`, Claude only proposes a structure to approve. */
-  generate(ref: DemoRef, opts: { structureFirst: boolean }): Promise<void> {
+  generate(ref: DemoRef, opts: GenerateOptions): Promise<void> {
     return this.task(ref, async (signal) => {
+      await this.prepare(ref, opts, signal);
+      if (signal.aborted) return false;
       const prompt = generatePrompt({ structureFirst: opts.structureFirst });
       const label = opts.structureFirst ? "Propose the site structure" : "Generate the site";
       const r = await this.claudeStep(ref, prompt, signal, label);

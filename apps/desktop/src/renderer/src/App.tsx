@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import type { ClaudeCheck, DemoRef } from "@common/types";
+import type { ClaudeCheck, DemoRef, GenerateOptions } from "@common/types";
 import { api } from "./api";
 import { Library } from "./screens/Library";
 import { Workspace } from "./screens/Workspace";
 import { SettingsDialog } from "./screens/SettingsDialog";
 
-type Screen = { name: "library" } | { name: "demo"; ref: DemoRef; autostart?: { structureFirst: boolean } };
+type Screen = { name: "library" } | { name: "demo"; ref: DemoRef; autostart?: GenerateOptions };
 
 export function App() {
   const [screen, setScreen] = useState<Screen>({ name: "library" });

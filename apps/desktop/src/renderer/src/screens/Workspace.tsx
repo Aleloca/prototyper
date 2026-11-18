@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { DemoDetail, DemoRef, RunEvent } from "@common/types";
+import type { DemoDetail, DemoRef, GenerateOptions, RunEvent } from "@common/types";
+import { ReferencesPanel } from "../components/ReferencesPanel";
 import { api } from "../api";
 import { Modal } from "../components/Modal";
 import { errorMessage, timeAgo } from "../format";
@@ -8,11 +9,11 @@ import { ShareDialog } from "./ShareDialog";
 
 type Device = "desktop" | "tablet" | "mobile";
 const DEVICE_WIDTH: Record<Device, string> = { desktop: "100%", tablet: "820px", mobile: "390px" };
-type Tab = "claude" | "versions" | "checks";
+type Tab = "claude" | "references" | "versions" | "checks";
 
 const sameRef = (a: DemoRef, b: DemoRef) => a.client === b.client && a.demo === b.demo;
 
-export function Workspace(props: { demoRef: DemoRef; autostart?: { structureFirst: boolean }; onBack: () => void }) {
+export function Workspace(props: { demoRef: DemoRef; autostart?: GenerateOptions; onBack: () => void }) {
   const { demoRef } = props;
   const [detail, setDetail] = useState<DemoDetail | undefined>();
   const [events, setEvents] = useState<RunEvent[]>([]);
@@ -140,6 +141,7 @@ export function Workspace(props: { demoRef: DemoRef; autostart?: { structureFirs
         <aside className="flex w-[400px] shrink-0 flex-col border-l border-line bg-panel">
           <nav className="flex gap-1 border-b border-line px-3 pt-2" role="tablist">
             <TabButton active={tab === "claude"} onClick={() => setTab("claude")}>Claude</TabButton>
+            <TabButton active={tab === "references"} onClick={() => setTab("references")}>References</TabButton>
             <TabButton active={tab === "versions"} onClick={() => setTab("versions")}>
               Versions {meta.versions.length > 0 && <span className="text-faint">{meta.versions.length}</span>}
             </TabButton>
@@ -172,6 +174,7 @@ export function Workspace(props: { demoRef: DemoRef; autostart?: { structureFirs
               onCancel={() => void api.demo.cancel(demoRef)}
             />
           )}
+          {tab === "references" && <ReferencesPanel demoRef={demoRef} />}
           {tab === "versions" && <VersionsPanel detail={detail} />}
           {tab === "checks" && <ChecksPanel detail={detail} />}
         </aside>
