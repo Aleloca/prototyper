@@ -1,7 +1,14 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import * as tar from "tar";
-import type { RoundSummary, ShareTarget } from "../common/types";
+import type { ContentValue, FeedbackAnchor, RoundSummary, ShareTarget } from "../common/types";
+
+export interface ServerFeedback {
+  round: { id: number; versionNumber: number; status: "open" | "submitted" | "imported"; submittedAt: string | null; submittedBy: string | null };
+  edits: { key: string; page: string; value: ContentValue; before: ContentValue | null; author: string; updatedAt: string }[];
+  uploads: { id: string; key: string; mime: string; width: number; height: number }[];
+  comments: { id: string; page: string; anchor: FeedbackAnchor; text: string; author: string; status: string; reply: string | null; createdAt: string }[];
+}
 
 /** HTTP client for a Prototyper share server's admin API. */
 export class ShareClient {
@@ -55,6 +62,20 @@ export class ShareClient {
   setShareStatus = (token: string, status: "open" | "readonly" | "revoked") => this.req("PATCH", `/api/admin/shares/${token}`, { status });
 
   rounds = (projectId: string) => this.req<RoundSummary[]>("GET", `/api/admin/projects/${projectId}/rounds`);
+
+  feedback = (roundId: number) => this.req<ServerFeedback>("GET", `/api/admin/rounds/${roundId}/feedback`);
+
+  async upload(id: string): Promise<Buffer> {
+    const res = await fetch(`${this.target.baseUrl.replace(/\/+$/, "")}/api/admin/uploads/${id}`, {
+      headers: { Authorization: `Bearer ${this.adminToken}` },
+      signal: AbortSignal.timeout(60_000),
+    });
+    if (!res.ok) throw new Error(`Download of image ${id} failed (${res.status})`);
+    return Buffer.from(await res.arrayBuffer());
+  }
+
+  markImported = (roundId: number, replies: Record<string, { status: "resolved" | "answered" | "open"; reply?: string }> = {}) =>
+    this.req("POST", `/api/admin/rounds/${roundId}/imported`, { replies });
 }
 
 /** Text of the `## v<n>` section of a demo's CHANGELOG.md, if any. */

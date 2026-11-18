@@ -27,6 +27,7 @@ export function Library(props: { onOpen: (ref: DemoRef, autostart?: { structureF
 
   const load = useCallback(() => void api.library.list().then(setClients), []);
   useEffect(load, [load]);
+  useEffect(() => api.onDemoChanged(() => load()), [load]);
 
   const q = query.trim().toLowerCase();
   const visible = (clients ?? [])

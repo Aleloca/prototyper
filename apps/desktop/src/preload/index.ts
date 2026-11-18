@@ -1,6 +1,8 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type {
+  ApplyFeedbackInput,
   ClaudeCheck,
+  FeedbackRound,
   ClientInfo,
   DemoDetail,
   DemoEventMessage,
@@ -33,6 +35,7 @@ const api = {
     saveTarget: (input: ShareTargetInput) => invoke<ShareTarget>("share:saveTarget", input),
     removeTarget: (id: string) => invoke<void>("share:removeTarget", id),
     testTarget: (id: string) => invoke<boolean>("share:testTarget", id),
+    poll: () => invoke<void>("share:poll"),
   },
   library: {
     list: () => invoke<LibraryClient[]>("library:list"),
@@ -52,6 +55,8 @@ const api = {
     publish: (ref: DemoRef, targetId: string) => invoke<ShareInfo>("demo:publish", ref, targetId),
     setShareStatus: (ref: DemoRef, status: ShareInfo["status"]) => invoke<void>("demo:setShareStatus", ref, status),
     rounds: (ref: DemoRef) => invoke<RoundSummary[]>("demo:rounds", ref),
+    loadFeedback: (ref: DemoRef) => invoke<FeedbackRound>("demo:loadFeedback", ref),
+    applyFeedback: (ref: DemoRef, input: ApplyFeedbackInput) => invoke<void>("demo:applyFeedback", ref, input),
     openFolder: (ref: DemoRef) => invoke<string>("demo:openFolder", ref),
     openInBrowser: (ref: DemoRef) => invoke<void>("demo:openInBrowser", ref),
     openTerminal: (ref: DemoRef) => invoke<void>("demo:openTerminal", ref),
@@ -60,6 +65,11 @@ const api = {
     const listener = (_: unknown, msg: DemoEventMessage) => cb(msg);
     ipcRenderer.on("demo:event", listener);
     return () => void ipcRenderer.off("demo:event", listener);
+  },
+  onOpenDemo: (cb: (ref: DemoRef) => void) => {
+    const listener = (_: unknown, ref: DemoRef) => cb(ref);
+    ipcRenderer.on("app:openDemo", listener);
+    return () => void ipcRenderer.off("app:openDemo", listener);
   },
   onDemoChanged: (cb: (ref: DemoRef) => void) => {
     const listener = (_: unknown, ref: DemoRef) => cb(ref);

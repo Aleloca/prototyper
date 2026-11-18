@@ -1,18 +1,37 @@
 import { randomUUID } from "node:crypto";
 import { watch, type FSWatcher } from "node:fs";
-import { appendFile, mkdir, readFile, stat } from "node:fs/promises";
-import { join } from "node:path";
+import { appendFile, mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { join, posix } from "node:path";
 import {
   SYSTEM_PROMPT,
   buildFromStructurePrompt,
   generatePrompt,
   lintFixPrompt,
+  revisionPrompt,
 } from "@prototyper/prototype-kit";
-import type { DemoDetail, DemoMeta, DemoRef, LintSummary, NewDemoInput, RoundSummary, RunEvent, RunPhase, Settings, ShareInfo } from "../common/types";
+import type { ContentEdit } from "@prototyper/shared";
+import type {
+  ApplyFeedbackInput,
+  DemoDetail,
+  DemoMeta,
+  DemoRef,
+  FeedbackAnchor,
+  FeedbackEdit,
+  FeedbackNote,
+  FeedbackRound,
+  LintSummary,
+  NewDemoInput,
+  RoundSummary,
+  RunEvent,
+  RunPhase,
+  Settings,
+  ShareInfo,
+} from "../common/types";
+import { applyClientEdits, contentMap, describeValue, feedbackMarkdown, uploadIdOf } from "./feedback";
 import { buildSite, lintSite } from "./build";
 import { describeTool, findClaude, runClaude } from "./claude";
 import { DemoRepo } from "./git";
-import { changelogFor, type ShareClient } from "./share";
+import { changelogFor, type ServerFeedback, type ShareClient } from "./share";
 import type { Library } from "./library";
 import type { PreviewServer } from "./preview";
 
@@ -30,6 +49,10 @@ export interface DemoServiceDeps {
   capture: (url: string, outPath: string) => Promise<void>;
   /** Admin API client for a configured share target. */
   shareClient?: (targetId: string) => ShareClient;
+  /** Screenshot of the area a note points at, on a page of the local preview (needs Electron). */
+  captureArea?: (pageUrl: string, anchor: FeedbackAnchor, outPath: string) => Promise<void>;
+  /** System notification. */
+  notify?: (ref: DemoRef, title: string, body: string) => void;
 }
 
 interface Running {
@@ -108,8 +131,10 @@ export class DemoService {
   private async ensureThumbnail(ref: DemoRef): Promise<void> {
     const dir = this.dir(ref);
     const thumb = join(dir, ".prototyper", "thumb.png");
-    const exists = async (p: string) => stat(p).then(() => true, () => false);
-    if ((await exists(thumb)) || !(await exists(join(dir, "dist", "index.html")))) return;
+    const mtime = (p: string) => stat(p).then((s) => s.mtimeMs, () => 0);
+    const built = await mtime(join(dir, "dist", "index.html"));
+    // Missing, or older than the last build (e.g. the site changed outside the app).
+    if (!built || (await mtime(thumb)) >= built) return;
     await mkdir(join(dir, ".prototyper"), { recursive: true });
     await this.deps.capture(this.deps.preview.mount(keyOf(ref), join(dir, "dist")), thumb).catch(() => {});
   }
@@ -226,6 +251,194 @@ export class DemoService {
     const meta = await this.deps.library().readMeta(ref);
     if (!meta.share) return [];
     return this.client(meta.share.targetId).rounds(meta.id);
+  }
+
+  // --- client feedback --------------------------------------------------------------------------
+
+  private roundDir(ref: DemoRef, versionNumber: number): string {
+    return join(this.dir(ref), ".prototyper", "rounds", `v${versionNumber}`);
+  }
+
+  /** Download the newest review round that has not been imported yet, with its images. */
+  async loadFeedback(ref: DemoRef): Promise<FeedbackRound> {
+    const detail = await this.detail(ref);
+    const share = detail.meta.share;
+    if (!share) throw new Error("This demo has not been shared yet.");
+    const client = this.client(share.targetId);
+    const pending = (await client.rounds(detail.meta.id)).filter((r) => r.status !== "imported").at(-1);
+    if (!pending) throw new Error("There is no new client feedback.");
+
+    const fb = await client.feedback(pending.id);
+    const dir = this.roundDir(ref, fb.round.versionNumber);
+    await mkdir(join(dir, "uploads"), { recursive: true });
+    await writeFile(join(dir, "feedback.json"), JSON.stringify(fb, null, 2));
+    for (const u of fb.uploads) {
+      const file = join(dir, "uploads", `${u.id}.webp`);
+      if (!(await stat(file).then(() => true, () => false))) await writeFile(file, await client.upload(u.id));
+    }
+
+    const content = await contentMap(detail.dir);
+    const pageUrl = (page: string) => new URL(page, detail.previewUrl).toString();
+    const dataUrl = async (file: string, mime: string) =>
+      readFile(file).then((b) => `data:${mime};base64,${b.toString("base64")}`, () => undefined);
+
+    const edits: FeedbackEdit[] = [];
+    for (const e of fb.edits) {
+      const edit: FeedbackEdit = { ...e };
+      if (e.value.kind === "image" || e.value.kind === "bg") {
+        const id = uploadIdOf(e.value.src);
+        const preview = id ? await dataUrl(join(dir, "uploads", `${id}.webp`), "image/webp") : undefined;
+        if (preview) edit.preview = preview;
+      }
+      if (e.before && (e.before.kind === "image" || e.before.kind === "bg") && e.before.src) {
+        edit.beforePreview = new URL(posix.join(posix.dirname(e.page), e.before.src), detail.previewUrl).toString();
+      }
+      edits.push(edit);
+    }
+
+    const notes: FeedbackNote[] = [];
+    for (const c of fb.comments) {
+      const note: FeedbackNote = { id: c.id, page: c.page, anchor: c.anchor, text: c.text, author: c.author, createdAt: c.createdAt };
+      if (c.anchor.key) note.context = describeValue(content.get(c.anchor.key)?.value);
+      const shot = join(dir, `note-${c.id}.png`);
+      if (this.deps.captureArea && !(await stat(shot).then(() => true, () => false))) {
+        await this.deps.captureArea(pageUrl(c.page), c.anchor, shot).catch(() => {});
+      }
+      const screenshot = await dataUrl(shot, "image/png");
+      if (screenshot) note.screenshot = screenshot;
+      notes.push(note);
+    }
+
+    return {
+      roundId: fb.round.id,
+      versionNumber: fb.round.versionNumber,
+      status: fb.round.status,
+      submittedAt: fb.round.submittedAt,
+      submittedBy: fb.round.submittedBy,
+      edits,
+      notes,
+    };
+  }
+
+  /**
+   * Close the round on the server, apply the accepted edits to src/ and, when asked,
+   * let Claude address the accepted notes and save the next version. Replies go back to the client.
+   */
+  applyFeedback(ref: DemoRef, input: ApplyFeedbackInput): Promise<void> {
+    return this.task(ref, async (signal) => {
+      const meta = await this.deps.library().readMeta(ref);
+      if (!meta.share) throw new Error("This demo has not been shared yet.");
+      const client = this.client(meta.share.targetId);
+      const demoDir = this.dir(ref);
+
+      const fb = await this.findRoundFeedback(ref, input.roundId);
+      const versionNumber = fb.round.versionNumber;
+      const dir = this.roundDir(ref, versionNumber);
+      const accepted = fb.edits.filter((e) => input.acceptedEdits.includes(e.key));
+      const notes = fb.comments.filter((c) => input.acceptedNotes.includes(c.id));
+      await this.record(ref, {
+        type: "user",
+        text: `Apply client feedback on v${versionNumber}: ${accepted.length} of ${fb.edits.length} edits, ${notes.length} of ${fb.comments.length} notes${input.extraInstructions.trim() ? `\n\n${input.extraInstructions.trim()}` : ""}`,
+        at: now(),
+      });
+
+      // The client can no longer change this round while we work on the next version.
+      await client.markImported(fb.round.id);
+
+      this.phase(ref, "build", "Applying the client's edits…");
+      const edits: ContentEdit[] = accepted.map((e) => ({ key: e.key, value: e.value }) as ContentEdit);
+      const result = await applyClientEdits(demoDir, edits, join(dir, "uploads"));
+      if (result.unmatched.length || result.conflicts.length) {
+        await this.record(ref, {
+          type: "error",
+          message: `Some edits could not be applied (the content changed since v${versionNumber}): ${[...result.unmatched, ...result.conflicts].join("; ")}`,
+          at: now(),
+        });
+      }
+
+      const content = await contentMap(demoDir);
+      const withShots = await Promise.all(
+        notes.map(async (n) => {
+          const file = `note-${n.id}.png`;
+          const exists = await stat(join(dir, file)).then(() => true, () => false);
+          return { ...n, ...(exists ? { screenshotFile: file } : {}) };
+        }),
+      );
+      await writeFile(
+        join(dir, "feedback.md"),
+        feedbackMarkdown({
+          versionNumber,
+          submittedBy: fb.round.submittedBy,
+          submittedAt: fb.round.submittedAt,
+          applied: accepted.filter((e) => result.applied.includes(e.key)),
+          notes: withShots,
+          content,
+        }),
+      );
+      await new DemoRepo(demoDir).commitAll(`Client edits from the review of v${versionNumber}`);
+      await this.deps.library().updateMeta(ref, (m) => {
+        m.status = "draft";
+        if (m.lastRound) m.lastRound.status = "imported";
+      });
+      await this.record(ref, { type: "feedback", version: versionNumber, edits: result.applied.length, notes: notes.length, at: now() });
+
+      if (!input.generate) return this.finish(ref, signal, `Client edits from the review of v${versionNumber}`, { firstVersion: false });
+
+      const next = ((await this.deps.library().readMeta(ref)).versions.at(-1)?.number ?? versionNumber) + 1;
+      const roundRel = posix.join(".prototyper", "rounds", `v${versionNumber}`);
+      const r = await this.claudeStep(ref, revisionPrompt(roundRel, next, input.extraInstructions), signal);
+      if (!r.ok) return false;
+      if (!(await this.finish(ref, signal, `Address client notes from the review of v${versionNumber}`, { firstVersion: false }))) return false;
+
+      const changelog = await changelogFor(demoDir, next);
+      await this.saveVersion(ref, firstBullet(changelog) || `Client feedback on v${versionNumber}`);
+
+      const replies = await readReplies(join(dir, "replies.json"), new Set(notes.map((n) => n.id)));
+      await client.markImported(fb.round.id, replies);
+      return true;
+    });
+  }
+
+  private async findRoundFeedback(ref: DemoRef, roundId: number): Promise<ServerFeedback> {
+    const meta = await this.deps.library().readMeta(ref);
+    const versions = (await this.client(meta.share!.targetId).rounds(meta.id)).find((r) => r.id === roundId)?.versionNumber;
+    if (versions == null) throw new Error("Unknown review round.");
+    const saved = await readFile(join(this.roundDir(ref, versions), "feedback.json"), "utf8").catch(() => undefined);
+    if (!saved) throw new Error("Load the feedback before applying it.");
+    return JSON.parse(saved) as ServerFeedback;
+  }
+
+  /**
+   * Refresh the review status of every shared demo; notify when a client submits.
+   * Errors for one server don't stop the others.
+   */
+  async pollShares(): Promise<void> {
+    const library = this.deps.library();
+    for (const client of await library.list().catch(() => [])) {
+      for (const demo of client.demos) {
+        if (!demo.share || demo.share.status === "revoked") continue;
+        const ref = { client: client.slug, demo: demo.slug };
+        let last: RoundSummary | undefined;
+        try {
+          last = (await this.client(demo.share.targetId).rounds(demo.id)).at(-1);
+        } catch {
+          continue;
+        }
+        if (!last) continue;
+        const prev = demo.lastRound;
+        const changed = !prev || prev.id !== last.id || prev.status !== last.status || prev.edits !== last.edits || prev.comments !== last.comments;
+        if (!changed) continue;
+        const justSubmitted = last.status === "submitted" && (prev?.id !== last.id || prev.status !== "submitted");
+        await library.updateMeta(ref, (m) => {
+          m.lastRound = last;
+          if (justSubmitted) m.status = "feedback";
+        });
+        if (justSubmitted) {
+          this.deps.notify?.(ref, `${client.name} — ${demo.name}`, `${last.submittedBy ?? "The client"} sent feedback on v${last.versionNumber}: ${last.edits} edits, ${last.comments} notes.`);
+        }
+        this.deps.changed(ref);
+      }
+    }
   }
 
   private client(targetId: string): ShareClient {
@@ -388,4 +601,24 @@ export class DemoService {
 function firstLine(s: string): string {
   const line = s.trim().split("\n")[0] ?? "";
   return line.length > 72 ? `${line.slice(0, 71)}…` : line;
+}
+
+function firstBullet(markdown: string): string {
+  const line = markdown.split("\n").map((l) => l.replace(/^\s*[-*]\s+/, "").trim()).find(Boolean) ?? "";
+  return line.length > 100 ? `${line.slice(0, 99)}…` : line;
+}
+
+/** Claude's replies to the notes, restricted to the notes it was given. */
+async function readReplies(file: string, noteIds: Set<string>): Promise<Record<string, { status: "resolved" | "answered"; reply?: string }>> {
+  try {
+    const raw = JSON.parse(await readFile(file, "utf8")) as Record<string, { status?: string; reply?: string }>;
+    const out: Record<string, { status: "resolved" | "answered"; reply?: string }> = {};
+    for (const [id, r] of Object.entries(raw)) {
+      if (!noteIds.has(id)) continue;
+      out[id] = { status: r.status === "answered" ? "answered" : "resolved", ...(typeof r.reply === "string" ? { reply: r.reply.slice(0, 5000) } : {}) };
+    }
+    return out;
+  } catch {
+    return {};
+  }
 }

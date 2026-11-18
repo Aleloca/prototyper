@@ -10,7 +10,7 @@ const ROUND_LABEL: Record<RoundSummary["status"], string> = {
   imported: "Feedback imported",
 };
 
-export function ShareDialog(props: { demoRef: DemoRef; detail: DemoDetail; onClose: () => void; onSaveVersion: () => void }) {
+export function ShareDialog(props: { demoRef: DemoRef; detail: DemoDetail; onClose: () => void; onSaveVersion: () => void; onReview?: () => void }) {
   const { meta, unsavedChanges } = props.detail;
   const share = meta.share;
   const latest = meta.versions.at(-1);
@@ -95,6 +95,9 @@ export function ShareDialog(props: { demoRef: DemoRef; detail: DemoDetail; onClo
               {current.edits} edit{current.edits === 1 ? "" : "s"} · {current.comments} note{current.comments === 1 ? "" : "s"}
               {current.submittedAt && ` · sent by ${current.submittedBy ?? "the client"} ${timeAgo(current.submittedAt)}`}
             </p>
+            {current.status !== "imported" && current.edits + current.comments > 0 && props.onReview && (
+              <button className="btn mt-2" onClick={props.onReview}>Review feedback</button>
+            )}
           </div>
         )}
 

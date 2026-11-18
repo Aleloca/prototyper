@@ -3,6 +3,7 @@ import type { DemoDetail, DemoRef, RunEvent } from "@common/types";
 import { api } from "../api";
 import { Modal } from "../components/Modal";
 import { errorMessage, timeAgo } from "../format";
+import { FeedbackDialog } from "./FeedbackDialog";
 import { ShareDialog } from "./ShareDialog";
 
 type Device = "desktop" | "tablet" | "mobile";
@@ -21,6 +22,7 @@ export function Workspace(props: { demoRef: DemoRef; autostart?: { structureFirs
   const [error, setError] = useState<string | undefined>();
   const [saving, setSaving] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
   const started = useRef(false);
 
   const reload = useCallback(() => void api.demo.detail(demoRef).then(setDetail), [demoRef]);
@@ -145,6 +147,19 @@ export function Workspace(props: { demoRef: DemoRef; autostart?: { structureFirs
               Checks {detail.lint && detail.lint.errors > 0 && <span className="text-danger">{detail.lint.errors}</span>}
             </TabButton>
           </nav>
+          {meta.lastRound && meta.lastRound.status !== "imported" && (meta.lastRound.edits > 0 || meta.lastRound.comments > 0) && (
+            <div className={`mx-3 mt-3 rounded-lg border px-3 py-2.5 ${meta.lastRound.status === "submitted" ? "border-warn/40 bg-warn/10" : "border-line bg-canvas"}`}>
+              <p className="font-medium">
+                {meta.lastRound.status === "submitted" ? `${meta.lastRound.submittedBy ?? "The client"} sent feedback on v${meta.lastRound.versionNumber}` : `The client is reviewing v${meta.lastRound.versionNumber}`}
+              </p>
+              <p className="text-muted">
+                {meta.lastRound.edits} edit{meta.lastRound.edits === 1 ? "" : "s"} · {meta.lastRound.comments} note{meta.lastRound.comments === 1 ? "" : "s"}
+              </p>
+              <button className="btn btn-primary mt-2" disabled={running} onClick={() => setReviewing(true)}>
+                Review feedback
+              </button>
+            </div>
+          )}
           {tab === "claude" && (
             <ClaudePanel
               events={events}
@@ -162,11 +177,27 @@ export function Workspace(props: { demoRef: DemoRef; autostart?: { structureFirs
         </aside>
       </div>
 
+      {reviewing && (
+        <FeedbackDialog
+          demoRef={demoRef}
+          nextVersion={(version?.number ?? 0) + 1}
+          onClose={() => setReviewing(false)}
+          onStarted={() => {
+            setReviewing(false);
+            setTab("claude");
+            setPhase("Applying client feedback…");
+          }}
+        />
+      )}
       {sharing && (
         <ShareDialog
           demoRef={demoRef}
           detail={detail}
           onClose={() => setSharing(false)}
+          onReview={() => {
+            setSharing(false);
+            setReviewing(true);
+          }}
           onSaveVersion={() => {
             setSharing(false);
             setSaving(true);
@@ -356,6 +387,12 @@ function EventItem({ event: e }: { event: RunEvent }) {
       );
     case "version":
       return <div className="text-[12px] font-medium text-ok">Saved as v{e.number}</div>;
+    case "feedback":
+      return (
+        <div className="text-[12px] font-medium text-accent">
+          Imported client feedback on v{e.version}: {e.edits} edit(s) applied, {e.notes} note(s) for Claude
+        </div>
+      );
     case "published":
       return <div className="text-[12px] font-medium text-accent">Published v{e.version} for client review</div>;
     case "error":

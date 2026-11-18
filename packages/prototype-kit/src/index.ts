@@ -89,11 +89,18 @@ ${report}
 Remember: keep existing keys stable; only add, split or rename keys where the error requires it.`;
 }
 
-export function revisionPrompt(round: number, extraInstructions?: string): string {
+/**
+ * Prompt for the next version after a client review round.
+ * @param roundDir  folder with feedback.md, relative to the demo (e.g. `.prototyper/rounds/v2`)
+ * @param nextVersion  the version Claude is producing
+ */
+export function revisionPrompt(roundDir: string, nextVersion: number, extraInstructions?: string): string {
   const extra = extraInstructions?.trim()
     ? `\n\nAdditional instructions from the developer (they take priority over the notes):\n\n${extraInstructions.trim()}`
     : "";
-  return `Client feedback for round ${round} is in .prototyper/rounds/${round}/feedback.md (images referenced there are in the same folder).
-The client's direct edits are already applied to src/: treat that copy as approved.
-Address every note, then update CHANGELOG.md with a "## v${round + 1}" section and write .prototyper/rounds/${round}/replies.json as described in CLAUDE.md.${extra}`;
+  return `Client feedback is in ${roundDir}/feedback.md (images and screenshots referenced there are in the same folder; look at them).
+The client's direct text and image edits are already applied to src/: treat that copy as approved.
+Address every note, then:
+- prepend a "## v${nextVersion}" section to CHANGELOG.md: a short, client-friendly list of what changed, in the content language;
+- write ${roundDir}/replies.json as described in CLAUDE.md, with one entry for every note id.${extra}`;
 }

@@ -2,9 +2,9 @@ import { execFile } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
-import { BrowserWindow, app, dialog, ipcMain, shell } from "electron";
+import { BrowserWindow, Notification, app, dialog, ipcMain, shell } from "electron";
 import { randomUUID } from "node:crypto";
-import type { DemoRef, NewClientInput, NewDemoInput, RunEvent, Settings, ShareInfo, ShareTargetInput } from "../common/types";
+import type { ApplyFeedbackInput, DemoRef, FeedbackAnchor, NewClientInput, NewDemoInput, RunEvent, Settings, ShareInfo, ShareTargetInput } from "../common/types";
 import { checkClaude, findClaude } from "./claude";
 import { DemoService } from "./demos";
 import { Library } from "./library";
@@ -57,7 +57,59 @@ const demos = new DemoService({
   changed: (ref: DemoRef) => send("demo:changed", ref),
   capture: captureThumbnail,
   shareClient,
+  captureArea,
+  notify: (ref, title, body) => {
+    if (!Notification.isSupported()) return;
+    const n = new Notification({ title, body });
+    n.on("click", () => {
+      mainWindow?.show();
+      send("app:openDemo", ref);
+    });
+    n.show();
+  },
 });
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Screenshot the area a client note points at: scroll the anchored element into view,
+ * mark the note's exact spot, crop around it.
+ */
+async function captureArea(pageUrl: string, anchor: FeedbackAnchor, outPath: string): Promise<void> {
+  const win = new BrowserWindow({ show: false, width: 1280, height: 900, webPreferences: { offscreen: true, sandbox: true } });
+  try {
+    await win.loadURL(pageUrl);
+    await sleep(500);
+    const box = (await win.webContents.executeJavaScript(`(() => {
+      const a = ${JSON.stringify(anchor)};
+      let el = null;
+      if (a.key) el = document.querySelector('[data-pt="' + CSS.escape(a.key) + '"], [data-pt-bg="' + CSS.escape(a.key) + '"]');
+      else if (a.selector) { try { el = document.querySelector(a.selector); } catch {} }
+      if (!el) return null;
+      el.scrollIntoView({ block: "center" });
+      const r = el.getBoundingClientRect();
+      const px = r.left + a.x * r.width, py = r.top + a.y * r.height;
+      const m = document.createElement("div");
+      m.style.cssText = "position:fixed;z-index:2147483647;width:24px;height:24px;margin:-12px 0 0 -12px;border-radius:50%;background:#f05a28;box-shadow:0 0 0 3px #fff,0 2px 10px rgba(0,0,0,.45);left:" + px + "px;top:" + py + "px";
+      document.body.appendChild(m);
+      return { x: r.left, y: r.top, w: r.width, h: r.height, px, py, vw: innerWidth, vh: innerHeight };
+    })()`)) as { x: number; y: number; w: number; h: number; px: number; py: number; vw: number; vh: number } | null;
+    if (!box) return;
+    await sleep(200);
+    // Frame the whole element (plus margin) when it fits; otherwise center on the note's spot.
+    const width = Math.round(Math.min(box.vw, 1200, Math.max(900, box.w + 160)));
+    const height = Math.round(Math.min(box.vh, 800, Math.max(500, box.h + 160)));
+    const fits = box.w + 160 <= width && box.h + 160 <= height;
+    const cx = fits ? box.x + box.w / 2 : box.px;
+    const cy = fits ? box.y + box.h / 2 : box.py;
+    const x = Math.round(Math.min(Math.max(0, cx - width / 2), box.vw - width));
+    const y = Math.round(Math.min(Math.max(0, cy - height / 2), box.vh - height));
+    const image = await win.webContents.capturePage({ x, y, width, height });
+    await writeFile(outPath, image.toPNG());
+  } finally {
+    win.destroy();
+  }
+}
 
 /** Render a page offscreen and save a 640px-wide PNG. */
 async function captureThumbnail(url: string, outPath: string): Promise<void> {
@@ -110,12 +162,17 @@ function createWindow(): void {
  * screenshot of the window to `path`, then quit. Used to check the UI from scripts.
  */
 async function devSnapshot(win: BrowserWindow, path: string): Promise<void> {
+  // A window in the background stops repainting and capturePage returns a stale frame.
+  win.webContents.setBackgroundThrottling(false);
   await new Promise<void>((r) => win.webContents.once("did-finish-load", () => r()));
   await new Promise((r) => setTimeout(r, 1500));
   if (process.env.PROTOTYPER_SNAPSHOT_JS) {
-    await win.webContents.executeJavaScript(process.env.PROTOTYPER_SNAPSHOT_JS);
+    const result: unknown = await win.webContents.executeJavaScript(process.env.PROTOTYPER_SNAPSHOT_JS);
+    if (result !== undefined) console.log("[snapshot]", JSON.stringify(result));
     await new Promise((r) => setTimeout(r, Number(process.env.PROTOTYPER_SNAPSHOT_WAIT ?? 2500)));
   }
+  win.webContents.invalidate();
+  await new Promise((r) => setTimeout(r, 300));
   await writeFile(path, (await win.webContents.capturePage()).toPNG());
   app.exit(0);
 }
@@ -173,6 +230,9 @@ function registerIpc(): void {
   handle("demo:publish", (ref: DemoRef, targetId: string) => demos.publish(ref, targetId));
   handle("demo:setShareStatus", (ref: DemoRef, status: ShareInfo["status"]) => demos.setShareStatus(ref, status));
   handle("demo:rounds", (ref: DemoRef) => demos.rounds(ref));
+  handle("demo:loadFeedback", (ref: DemoRef) => demos.loadFeedback(ref));
+  handle("demo:applyFeedback", (ref: DemoRef, input: ApplyFeedbackInput) => start(ref, () => demos.applyFeedback(ref, input)));
+  handle("share:poll", () => demos.pollShares());
   handle("demo:openFolder", (ref: DemoRef) => shell.openPath(library().demoDir(ref)));
   handle("demo:openInBrowser", async (ref: DemoRef) => shell.openExternal((await demos.detail(ref)).previewUrl));
   handle("demo:openTerminal", async (ref: DemoRef) => {
@@ -200,6 +260,9 @@ app.whenReady().then(async () => {
   await preview.start();
   registerIpc();
   createWindow();
+  // Check share servers for client activity: soon after start, then every 3 minutes.
+  setTimeout(() => void demos.pollShares(), 5_000);
+  setInterval(() => void demos.pollShares(), 3 * 60_000);
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });

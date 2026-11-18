@@ -86,6 +86,8 @@ export interface DemoMeta {
   pendingStructure?: string;
   versions: VersionInfo[];
   share?: ShareInfo;
+  /** Latest known review round on the share server (refreshed by polling). */
+  lastRound?: RoundSummary;
 }
 
 export interface DemoRef {
@@ -148,10 +150,73 @@ export type RunEvent =
   | { type: "structure"; text: string; at: string }
   | { type: "version"; number: number; at: string }
   | { type: "published"; version: number; url: string; at: string }
+  | { type: "feedback"; version: number; edits: number; notes: number; at: string }
   | { type: "error"; message: string; at: string }
   | { type: "done"; ok: boolean; at: string };
 
 export interface DemoEventMessage {
   ref: DemoRef;
   event: RunEvent;
+}
+
+// --- client feedback ---------------------------------------------------------------------------
+
+export type ContentValue =
+  | { kind: "text"; text: string }
+  | { kind: "rich"; html: string }
+  | { kind: "image"; src: string; alt?: string }
+  | { kind: "link"; label: string; href: string }
+  | { kind: "bg"; src: string };
+
+export interface FeedbackAnchor {
+  key?: string;
+  selector?: string;
+  x: number;
+  y: number;
+  viewportWidth?: number;
+}
+
+export interface FeedbackEdit {
+  key: string;
+  page: string;
+  value: ContentValue;
+  before: ContentValue | null;
+  author: string;
+  updatedAt: string;
+  /** For image/bg edits: data URL of the uploaded image (downloaded by the app). */
+  preview?: string;
+  /** For image/bg edits: data URL or preview URL of the original image. */
+  beforePreview?: string;
+}
+
+export interface FeedbackNote {
+  id: string;
+  page: string;
+  anchor: FeedbackAnchor;
+  text: string;
+  author: string;
+  createdAt: string;
+  /** Short description of what the note points at, e.g. the text of the anchored element. */
+  context?: string;
+  /** data URL of a screenshot of the commented area, when available. */
+  screenshot?: string;
+}
+
+export interface FeedbackRound {
+  roundId: number;
+  versionNumber: number;
+  status: "open" | "submitted" | "imported";
+  submittedAt: string | null;
+  submittedBy: string | null;
+  edits: FeedbackEdit[];
+  notes: FeedbackNote[];
+}
+
+export interface ApplyFeedbackInput {
+  roundId: number;
+  acceptedEdits: string[];
+  acceptedNotes: string[];
+  extraInstructions: string;
+  /** Run Claude on the notes and save the next version; otherwise only apply the edits. */
+  generate: boolean;
 }

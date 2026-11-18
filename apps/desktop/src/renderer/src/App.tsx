@@ -16,6 +16,8 @@ export function App() {
     void api.claude.check().then(setClaude);
   }, []);
   useEffect(checkClaude, [checkClaude]);
+  // Clicking a "feedback received" notification opens that demo.
+  useEffect(() => api.onOpenDemo((ref) => setScreen({ name: "demo", ref })), []);
 
   return (
     <div className="flex h-full flex-col">

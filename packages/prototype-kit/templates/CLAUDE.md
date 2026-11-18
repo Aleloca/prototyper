@@ -68,7 +68,7 @@ Write realistic, specific copy based on the brief: no lorem ipsum, no "Lorem Com
 
 ## When working on a revision
 
-You will be given a feedback file from `.prototyper/rounds/<n>/`. The client's direct text and image edits **are already applied** to `src/`. Treat that copy as approved: don't rewrite it unless a note explicitly asks you to. Address every note, then write:
+You will be given a feedback file in `.prototyper/rounds/<round>/feedback.md`. The client's direct text and image edits **are already applied** to `src/`. Treat that copy as approved: don't rewrite it unless a note explicitly asks you to. Address every note, then write:
 
-- `CHANGELOG.md`: prepend a `## v<n>` section with a short, client-friendly list of what changed;
-- `.prototyper/rounds/<n>/replies.json`: `{ "<noteId>": { "status": "resolved" | "answered", "reply": "<short reply to the client, in the content language>" } }`. Use `answered` when you didn't change anything and explain why.
+- `CHANGELOG.md`: prepend a `## v<next version>` section with a short, client-friendly list of what changed, in the content language;
+- `.prototyper/rounds/<round>/replies.json`: `{ "<note id>": { "status": "resolved" | "answered", "reply": "<short reply to the client, in the content language>" } }`. Use `resolved` when you made the change, `answered` when you didn't change anything and explain why (for example a question, or a request that conflicts with another note).
