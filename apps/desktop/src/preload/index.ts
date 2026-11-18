@@ -1,0 +1,60 @@
+import { contextBridge, ipcRenderer } from "electron";
+import type {
+  ClaudeCheck,
+  ClientInfo,
+  DemoDetail,
+  DemoEventMessage,
+  DemoMeta,
+  DemoRef,
+  LibraryClient,
+  NewClientInput,
+  NewDemoInput,
+  RunEvent,
+  Settings,
+} from "../common/types";
+
+const invoke = <R>(channel: string, ...args: unknown[]) => ipcRenderer.invoke(channel, ...args) as Promise<R>;
+
+const api = {
+  settings: {
+    get: () => invoke<Settings>("settings:get"),
+    set: (patch: Partial<Settings>) => invoke<Settings>("settings:set", patch),
+    chooseFolder: () => invoke<string | undefined>("settings:chooseFolder"),
+  },
+  claude: {
+    check: () => invoke<ClaudeCheck>("claude:check"),
+  },
+  library: {
+    list: () => invoke<LibraryClient[]>("library:list"),
+    createClient: (input: NewClientInput) => invoke<ClientInfo>("library:createClient", input),
+  },
+  demo: {
+    create: (input: NewDemoInput) => invoke<DemoMeta>("demo:create", input),
+    detail: (ref: DemoRef) => invoke<DemoDetail>("demo:detail", ref),
+    log: (ref: DemoRef) => invoke<RunEvent[]>("demo:log", ref),
+    open: (ref: DemoRef) => invoke<void>("demo:open", ref),
+    close: (ref: DemoRef) => invoke<void>("demo:close", ref),
+    generate: (ref: DemoRef, opts: { structureFirst: boolean }) => invoke<void>("demo:generate", ref, opts),
+    approveStructure: (ref: DemoRef, feedback: string) => invoke<void>("demo:approveStructure", ref, feedback),
+    chat: (ref: DemoRef, text: string) => invoke<void>("demo:chat", ref, text),
+    cancel: (ref: DemoRef) => invoke<void>("demo:cancel", ref),
+    saveVersion: (ref: DemoRef, summary: string) => invoke<void>("demo:saveVersion", ref, summary),
+    openFolder: (ref: DemoRef) => invoke<string>("demo:openFolder", ref),
+    openInBrowser: (ref: DemoRef) => invoke<void>("demo:openInBrowser", ref),
+    openTerminal: (ref: DemoRef) => invoke<void>("demo:openTerminal", ref),
+  },
+  onDemoEvent: (cb: (msg: DemoEventMessage) => void) => {
+    const listener = (_: unknown, msg: DemoEventMessage) => cb(msg);
+    ipcRenderer.on("demo:event", listener);
+    return () => void ipcRenderer.off("demo:event", listener);
+  },
+  onDemoChanged: (cb: (ref: DemoRef) => void) => {
+    const listener = (_: unknown, ref: DemoRef) => cb(ref);
+    ipcRenderer.on("demo:changed", listener);
+    return () => void ipcRenderer.off("demo:changed", listener);
+  },
+};
+
+export type Api = typeof api;
+
+contextBridge.exposeInMainWorld("api", api);

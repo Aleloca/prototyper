@@ -2,8 +2,13 @@ import { cp, readdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-/** Absolute path of the kit's templates folder. */
-export const TEMPLATES_DIR = fileURLToPath(new URL("../templates/", import.meta.url));
+/**
+ * Absolute path of the kit's templates folder. Bundlers move this module away from
+ * `templates/`, so hosts can point to it with `PROTOTYPER_TEMPLATES_DIR`.
+ */
+export function templatesDir(): string {
+  return process.env.PROTOTYPER_TEMPLATES_DIR ?? fileURLToPath(new URL("../templates/", import.meta.url));
+}
 
 export interface DemoVars {
   demoName: string;
@@ -41,11 +46,11 @@ export async function scaffoldDemo(dir: string, vars: DemoVars): Promise<void> {
   const existing = await readdir(dir).catch(() => []);
   if (existing.length > 0) throw new Error(`Demo folder is not empty: ${dir}`);
 
-  await cp(join(TEMPLATES_DIR, "starter"), dir, { recursive: true });
+  await cp(join(templatesDir(), "starter"), dir, { recursive: true });
   await rename(join(dir, "gitignore"), join(dir, ".gitignore"));
 
   const tv = templateVars(vars);
-  const claudeMd = await readFile(join(TEMPLATES_DIR, "CLAUDE.md"), "utf8");
+  const claudeMd = await readFile(join(templatesDir(), "CLAUDE.md"), "utf8");
   await writeFile(join(dir, "CLAUDE.md"), render(claudeMd, tv));
   const brief = await readFile(join(dir, "brief.md"), "utf8");
   await writeFile(join(dir, "brief.md"), render(brief, tv));
