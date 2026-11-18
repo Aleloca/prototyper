@@ -102,6 +102,8 @@ export interface DemoRef {
 export interface DemoSummary extends DemoMeta {
   /** data: URL of the home page thumbnail, if any. */
   thumbnail?: string;
+  /** Claude is working on it right now. */
+  running?: boolean;
 }
 
 export interface LibraryClient extends ClientInfo {
@@ -278,3 +280,14 @@ export interface ExportOptions {
   /** Ask Claude to write HANDOFF.md (handoff only). */
   withHandoffDoc: boolean;
 }
+
+/** Events of the home chat with the assistant. */
+export type AssistantEvent =
+  | { type: "user"; text: string; attachments: string[]; at: string }
+  | { type: "assistant"; text: string; at: string }
+  /** Transient: what the assistant is doing right now (empty message = thinking). */
+  | { type: "phase"; message: string; at: string }
+  /** Something the app did on the assistant's behalf, optionally linked to a demo. */
+  | { type: "action"; text: string; vars?: Record<string, string | number>; ref?: DemoRef; ok: boolean; at: string }
+  | { type: "error"; message: string; at: string }
+  | { type: "done"; ok: boolean; costUsd?: number; at: string };

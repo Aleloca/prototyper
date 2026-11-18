@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
 import type {
   ApplyFeedbackInput,
+  AssistantEvent,
   BrandEventMessage,
   BrandInfo,
   BrandTokens,
@@ -55,6 +56,20 @@ const api = {
     const listener = (_: unknown, msg: BrandEventMessage) => cb(msg);
     ipcRenderer.on("brand:event", listener);
     return () => void ipcRenderer.off("brand:event", listener);
+  },
+  assistant: {
+    log: () => invoke<AssistantEvent[]>("assistant:log"),
+    running: () => invoke<boolean>("assistant:running"),
+    send: (text: string, attachments: string[]) => invoke<void>("assistant:send", text, attachments),
+    cancel: () => invoke<void>("assistant:cancel"),
+    reset: () => invoke<void>("assistant:reset"),
+    attachFile: (path: string) => invoke<string>("assistant:attachFile", path),
+    attachData: (data: Uint8Array, ext: string) => invoke<string>("assistant:attachData", data, ext),
+  },
+  onAssistantEvent: (cb: (event: AssistantEvent) => void) => {
+    const listener = (_: unknown, event: AssistantEvent) => cb(event);
+    ipcRenderer.on("assistant:event", listener);
+    return () => void ipcRenderer.off("assistant:event", listener);
   },
   library: {
     list: () => invoke<LibraryClient[]>("library:list"),

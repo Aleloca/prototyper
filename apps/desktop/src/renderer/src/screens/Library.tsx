@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import type { DemoRef, DemoStatus, DemoSummary, GenerateOptions, LibraryClient } from "@common/types";
+import { AssistantPanel } from "../components/AssistantPanel";
 import { BrandDialog } from "./BrandDialog";
 import { api } from "../api";
 import { timeAgo } from "../format";
-import { NewDemoDialog } from "./NewDemoDialog";
 import { useT } from "../i18n";
 
 const STATUS_LABEL: Record<DemoStatus, string> = { // English keys, translated with t()
@@ -25,7 +25,6 @@ const STATUS_CLASS: Record<DemoStatus, string> = {
 export function Library(props: { onOpen: (ref: DemoRef, autostart?: GenerateOptions) => void; onSettings: () => void }) {
   const t = useT();
   const [clients, setClients] = useState<LibraryClient[] | undefined>();
-  const [newDemo, setNewDemo] = useState(false);
   const [query, setQuery] = useState("");
   const [brandFor, setBrandFor] = useState<string | undefined>();
 
@@ -50,15 +49,14 @@ export function Library(props: { onOpen: (ref: DemoRef, autostart?: GenerateOpti
           <button className="btn btn-ghost" onClick={props.onSettings} aria-label={t("Settings")}>
             {t("Settings")}
           </button>
-          <button className="btn btn-primary" onClick={() => setNewDemo(true)}>
-            {t("New demo")}
-          </button>
         </div>
       </header>
 
+      <div className="flex min-h-0 flex-1">
+      <AssistantPanel onOpen={(ref) => props.onOpen(ref)} />
       <main className="min-h-0 flex-1 overflow-y-auto px-8 py-6">
         {clients === undefined ? null : clients.length === 0 ? (
-          <EmptyState onCreate={() => setNewDemo(true)} />
+          <EmptyState />
         ) : (
           <div className="mx-auto flex max-w-6xl flex-col gap-9">
             {visible.map((client) => (
@@ -85,17 +83,9 @@ export function Library(props: { onOpen: (ref: DemoRef, autostart?: GenerateOpti
           </div>
         )}
       </main>
+      </div>
 
-      {newDemo && (
-        <NewDemoDialog
-          clients={clients ?? []}
-          onClose={() => setNewDemo(false)}
-          onCreated={(ref, options) => {
-            setNewDemo(false);
-            props.onOpen(ref, options);
-          }}
-        />
-      )}
+
       {brandFor && (
         <BrandDialog
           client={brandFor}
@@ -130,7 +120,14 @@ function DemoCard({ demo, onOpen }: { demo: DemoSummary; onOpen: () => void }) {
           {version && <span className="text-faint">v{version.number}</span>}
         </div>
         <div className="flex items-center gap-2">
-          <span className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${STATUS_CLASS[demo.status]}`}>{t(STATUS_LABEL[demo.status])}</span>
+          {demo.running ? (
+            <span className="inline-flex items-center gap-1.5 rounded bg-accent-soft px-1.5 py-0.5 text-[11px] font-medium text-accent">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
+              {t("Claude at work")}
+            </span>
+          ) : (
+            <span className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${STATUS_CLASS[demo.status]}`}>{t(STATUS_LABEL[demo.status])}</span>
+          )}
           <span className="ml-auto text-[12px] text-faint">{timeAgo(demo.updatedAt, t)}</span>
         </div>
       </div>
@@ -138,17 +135,12 @@ function DemoCard({ demo, onOpen }: { demo: DemoSummary; onOpen: () => void }) {
   );
 }
 
-function EmptyState({ onCreate }: { onCreate: () => void }) {
+function EmptyState() {
   const t = useT();
   return (
     <div className="mx-auto mt-24 max-w-md text-center">
       <h2 className="text-[17px] font-semibold">{t("Your demo library is empty")}</h2>
-      <p className="mt-2 text-muted">
-        {t("Create a demo from a brief. Claude builds a first version you can preview here, then share with your client for feedback.")}
-      </p>
-      <button className="btn btn-primary mt-5" onClick={onCreate}>
-        {t("Create your first demo")}
-      </button>
+      <p className="mt-2 text-muted">{t("Tell Claude what you need in the chat on the left: your demos will appear here.")}</p>
     </div>
   );
 }

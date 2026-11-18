@@ -1,6 +1,6 @@
 {
   "name": "@prototyper/desktop",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Prototyper desktop app",
@@ -26,13 +26,15 @@
     "vite": "^8.3.8"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@prototyper/prototype-kit": "workspace:*",
     "@prototyper/shared": "workspace:*",
     "@tailwindcss/node": "^4.3.5",
     "@tailwindcss/oxide": "^4.3.5",
     "simple-git": "^4.1.0",
     "tailwindcss": "^4.3.5",
-    "tar": "^7.5.23"
+    "tar": "^7.5.23",
+    "zod": "^4.6.7"
   },
   "author": "Prototyper contributors",
   "license": "MIT",

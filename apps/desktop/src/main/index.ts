@@ -9,6 +9,7 @@ import type { ApplyFeedbackInput, BrandTokens, DemoRef, ExportOptions, FeedbackA
 import { BrandService, type PageCapture } from "./brand";
 import { HIDE_OVERLAYS_JS, pageExtractor, type BrandRaw } from "./brand-extract";
 import { checkClaude, findClaude } from "./claude";
+import { AssistantService } from "./assistant";
 import { DemoService } from "./demos";
 import { log, watchApp, watchWindow } from "./diagnostics";
 import { Library } from "./library";
@@ -81,6 +82,16 @@ const demos = new DemoService({
     });
     n.show();
   },
+});
+
+const assistant = new AssistantService({
+  library,
+  demos,
+  settings: () => settings.get(),
+  shareTargets: () => (settings.get().shareTargets ?? []).filter((t) => secrets.has(t.id)),
+  dataDir: join(app.getPath("userData"), "assistant"),
+  emit: (event) => send("assistant:event", event),
+  openDemo: (ref) => send("app:openDemo", ref),
 });
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -345,7 +356,20 @@ function registerIpc(): void {
     return true;
   });
 
-  handle("library:list", () => library().list());
+  handle("library:list", async () =>
+    (await library().list()).map((c) => ({
+      ...c,
+      demos: c.demos.map((d) => ({ ...d, running: demos.isRunning({ client: c.slug, demo: d.slug }) })),
+    })),
+  );
+
+  handle("assistant:log", () => assistant.log());
+  handle("assistant:running", () => assistant.isRunning());
+  handle("assistant:send", (text: string, attachments: string[]) => assistant.send(text, attachments));
+  handle("assistant:cancel", () => assistant.cancel());
+  handle("assistant:reset", () => assistant.reset());
+  handle("assistant:attachFile", (path: string) => assistant.attachFile(path));
+  handle("assistant:attachData", (data: Uint8Array, ext: string) => assistant.attachData(data, ext));
   handle("library:createClient", (input: NewClientInput) => library().createClient(input));
 
   handle("demo:create", (input: NewDemoInput) => demos.create(input));
@@ -451,4 +475,7 @@ app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });
 
-app.on("before-quit", () => preview.stop());
+app.on("before-quit", () => {
+  preview.stop();
+  assistant.stop();
+});

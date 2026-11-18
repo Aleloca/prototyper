@@ -7,6 +7,36 @@ export type Lang = "en" | "it";
  * Placeholders: {name}.
  */
 const IT: Record<string, string> = {
+  // Assistant
+  "tell me what you need": "dimmi cosa ti serve",
+  "New conversation": "Nuova conversazione",
+  "What do you need?": "Cosa ti serve?",
+  "Describe a new demo, a change to an existing one, a brand to extract… I'll work out the client and the details, and only ask what I really need. You can drop screenshots here.":
+    "Descrivi una nuova demo, una modifica a una esistente, un brand da estrarre… Capisco io il cliente e i dettagli, e ti chiedo solo quello che mi serve davvero. Puoi trascinare qui gli screenshot.",
+  "A landing page for Pasticceria Rossi in Bergamo: artisan cakes, order online. Take the style from pasticceriarossi.it":
+    "Una landing per la Pasticceria Rossi di Bergamo: torte artigianali, ordini online. Prendi lo stile da pasticceriarossi.it",
+  "In the Studio Bianchi demo, make the hero more minimal and add a FAQ section": "Nella demo dello Studio Bianchi rendi la hero più essenziale e aggiungi le FAQ",
+  "Extract the brand of Studio Bianchi from their website": "Estrai il brand dello Studio Bianchi dal loro sito",
+  "Thinking…": "Sto pensando…",
+  "Describe what you need…  (⌘↵ to send)": "Descrivi cosa ti serve…  (⌘↵ per inviare)",
+  "Drop or paste screenshots to use as references": "Trascina o incolla screenshot da usare come riferimento",
+  "Drop images to attach them": "Rilascia le immagini per allegarle",
+  "Here are some references.": "Ecco alcuni riferimenti.",
+  "Claude at work": "Claude al lavoro",
+  "Tell Claude what you need in the chat on the left: your demos will appear here.": "Scrivi a Claude cosa ti serve nella chat a sinistra: le demo compariranno qui.",
+  "Created client {name}": "Creato il cliente {name}",
+  "Started demo “{name}”": "Avviata la demo «{name}»",
+  "Asked for changes to “{name}”": "Chieste modifiche a «{name}»",
+  "Extracting the brand of {name} from {site}": "Estrazione del brand di {name} da {site}",
+  "Added a reference": "Aggiunto un riferimento",
+  "Published “{name}” v{n}": "Pubblicata «{name}» v{n}",
+  "Structure of “{name}” ready for your review": "Struttura di «{name}» pronta da rivedere",
+  "“{name}” is ready (v{n})": "«{name}» è pronta (v{n})",
+  "“{name}” did not complete": "«{name}» non è stata completata",
+  "Changes to “{name}” are done": "Modifiche a «{name}» completate",
+  "Brand of {name} saved": "Brand di {name} salvato",
+  "Brand extraction for {name} did not complete": "Estrazione del brand di {name} non completata",
+  "Brand extraction failed: {error}": "Estrazione del brand non riuscita: {error}",
   // Library
   "Search clients and demos": "Cerca clienti e demo",
   Settings: "Impostazioni",

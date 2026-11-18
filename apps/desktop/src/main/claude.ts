@@ -82,6 +82,8 @@ export interface ClaudeRunOptions {
   allowedTools?: string[];
   /** Ignore the user's global settings, hooks, plugins and MCP servers (login is kept). */
   isolated?: boolean;
+  /** JSON for --mcp-config; only these MCP servers are loaded. */
+  mcpConfig?: string;
   signal?: AbortSignal;
 }
 
@@ -108,7 +110,9 @@ export function buildArgs(o: ClaudeRunOptions): string[] {
   args.push("--append-system-prompt", o.appendSystemPrompt);
   args.push(...(o.resume ? ["--resume", o.sessionId] : ["--session-id", o.sessionId]));
   if (o.model) args.push("--model", o.model);
-  if (o.isolated) args.push("--setting-sources", "project,local", "--strict-mcp-config");
+  if (o.isolated) args.push("--setting-sources", "project,local");
+  if (o.isolated || o.mcpConfig) args.push("--strict-mcp-config");
+  if (o.mcpConfig) args.push("--mcp-config", o.mcpConfig);
   // Variadic options last-but-one, each terminated by the next option.
   args.push("--allowedTools", ...(o.allowedTools ?? DEFAULT_TOOLS));
   for (const d of o.addDirs ?? []) args.push("--add-dir", d);
