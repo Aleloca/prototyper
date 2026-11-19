@@ -1,15 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import type { AssistantEvent, DemoRef } from "@common/types";
+import type { AssistantAttachment, AssistantEvent, DemoRef } from "@common/types";
 import { api } from "../api";
 import { errorMessage } from "../format";
 import { useT } from "../i18n";
 import { Markdownish } from "./Markdown";
-
-interface Attachment {
-  path: string;
-  name: string;
-  preview: string;
-}
 
 const EXAMPLES = [
   "A landing page for Pasticceria Rossi in Bergamo: artisan cakes, order online. Take the style from pasticceriarossi.it",
@@ -24,7 +18,8 @@ export function AssistantPanel(props: { onOpen: (ref: DemoRef) => void }) {
   const [running, setRunning] = useState(false);
   const [phase, setPhase] = useState<string | undefined>();
   const [text, setText] = useState("");
-  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [attachments, setAttachments] = useState<AssistantAttachment[]>([]);
+  const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const [over, setOver] = useState(false);
   const bottom = useRef<HTMLDivElement>(null);
@@ -52,32 +47,52 @@ export function AssistantPanel(props: { onOpen: (ref: DemoRef) => void }) {
     bottom.current?.scrollIntoView({ block: "end" });
   }, [events.length, running]);
 
+  /** Files with a path (dropped, picked, copied in Finder) go to the main process, which tells images from page sources. */
+  const attachPaths = async (paths: string[]) => {
+    if (!paths.length) return;
+    setImporting(true);
+    setError(undefined);
+    try {
+      const added = await api.assistant.attach(paths);
+      setAttachments((prev) => [...prev, ...added]);
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const addFiles = async (files: File[]) => {
+    const paths: string[] = [];
     for (const file of files) {
+      const path = api.pathForFile(file);
+      if (path) {
+        paths.push(path);
+        continue;
+      }
+      // Pasted image data (a screenshot copied to the clipboard) has no path.
       if (!file.type.startsWith("image/")) continue;
       try {
-        const path = api.pathForFile(file);
-        const saved = path
-          ? await api.assistant.attachFile(path)
-          : await api.assistant.attachData(new Uint8Array(await file.arrayBuffer()), (file.type.split("/")[1] ?? "png").replace("jpeg", "jpg"));
-        const preview = URL.createObjectURL(file);
-        setAttachments((prev) => [...prev, { path: saved, name: file.name || "image", preview }]);
+        const saved = await api.assistant.attachData(new Uint8Array(await file.arrayBuffer()), (file.type.split("/")[1] ?? "png").replace("jpeg", "jpg"));
+        setAttachments((prev) => [...prev, { kind: "image", path: saved, name: file.name || "image", preview: URL.createObjectURL(file) }]);
       } catch (e) {
         setError(errorMessage(e));
       }
     }
+    await attachPaths(paths);
   };
 
   const send = async () => {
     const message = text.trim();
-    if ((!message && !attachments.length) || running) return;
+    if ((!message && !attachments.length) || running || importing) return;
     setError(undefined);
     setText("");
     const files = attachments.map((a) => a.path);
     setAttachments([]);
     setRunning(true);
     try {
-      await api.assistant.send(message || t("Here are some references."), files);
+      const fallback = attachments.some((a) => a.kind === "source") ? t("Start from this page.") : t("Here are some references.");
+      await api.assistant.send(message || fallback, files);
     } catch (e) {
       setError(errorMessage(e));
       setRunning(false);
@@ -123,7 +138,7 @@ export function AssistantPanel(props: { onOpen: (ref: DemoRef) => void }) {
           <div className="mt-6">
             <p className="text-[15px] font-medium">{t("What do you need?")}</p>
             <p className="mt-1 text-muted">
-              {t("Describe a new demo, a change to an existing one, a brand to extract… I'll work out the client and the details, and only ask what I really need. You can drop screenshots here.")}
+              {t("Describe a new demo, a change to an existing one, a brand to extract… I'll work out the client and the details, and only ask what I really need. You can drop screenshots here, or an existing page to start from: a folder, a zip or its HTML and CSS files.")}
             </p>
             <div className="mt-4 flex flex-col gap-2">
               {EXAMPLES.map((ex) => (
@@ -163,7 +178,19 @@ export function AssistantPanel(props: { onOpen: (ref: DemoRef) => void }) {
           <div className="mb-2 flex flex-wrap gap-2">
             {attachments.map((a) => (
               <span key={a.path} className="relative">
-                <img src={a.preview} alt={a.name} className="h-14 w-20 rounded border border-line object-cover" />
+                {a.kind === "source" ? (
+                  <span className="flex h-14 max-w-56 items-center gap-2 rounded border border-line bg-canvas px-2.5" title={a.name}>
+                    <span className="text-[18px]">🗂</span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-[12.5px] font-medium">{a.name}</span>
+                      <span className="block text-[11.5px] text-faint">{t("Page to start from · {n} files", { n: a.files ?? 0 })}</span>
+                    </span>
+                  </span>
+                ) : a.preview ? (
+                  <img src={a.preview} alt={a.name} className="h-14 w-20 rounded border border-line object-cover" />
+                ) : (
+                  <span className="grid h-14 w-20 place-items-center rounded border border-line bg-canvas px-1 text-center text-[11px] text-muted">{a.name}</span>
+                )}
                 <button
                   className="absolute -top-1.5 -right-1.5 grid h-5 w-5 place-items-center rounded-full bg-ink text-[11px] text-white"
                   aria-label={t("Remove")}
@@ -182,7 +209,7 @@ export function AssistantPanel(props: { onOpen: (ref: DemoRef) => void }) {
           value={text}
           onChange={(e) => setText(e.target.value)}
           onPaste={(e) => {
-            const files = Array.from(e.clipboardData.files).filter((f) => f.type.startsWith("image/"));
+            const files = Array.from(e.clipboardData.files);
             if (files.length) {
               e.preventDefault();
               void addFiles(files);
@@ -196,13 +223,21 @@ export function AssistantPanel(props: { onOpen: (ref: DemoRef) => void }) {
           }}
         />
         <div className="mt-2 flex items-center gap-2">
-          <span className="text-[12px] text-faint">{t("Drop or paste screenshots to use as references")}</span>
+          <button
+            className="btn btn-ghost py-1 text-[12px]"
+            disabled={importing}
+            title={t("Screenshots to use as references, or an existing page to start from (folder, zip, HTML and CSS)")}
+            onClick={() => void api.assistant.pick().then(attachPaths)}
+          >
+            📎 {t("Attach")}
+          </button>
+          <span className="truncate text-[12px] text-faint">{importing ? t("Importing…") : t("screenshots, or a page to start from")}</span>
           {running ? (
             <button className="btn ml-auto" onClick={() => void api.assistant.cancel()}>
               {t("Stop")}
             </button>
           ) : (
-            <button className="btn btn-primary ml-auto" disabled={!text.trim() && !attachments.length} onClick={() => void send()}>
+            <button className="btn btn-primary ml-auto" disabled={(!text.trim() && !attachments.length) || importing} onClick={() => void send()}>
               {t("Send")}
             </button>
           )}
@@ -211,7 +246,7 @@ export function AssistantPanel(props: { onOpen: (ref: DemoRef) => void }) {
 
       {over && (
         <div className="pointer-events-none absolute inset-2 grid place-items-center rounded-xl border-2 border-dashed border-accent bg-accent-soft/80 font-medium text-accent">
-          {t("Drop images to attach them")}
+          {t("Drop screenshots, or a page to start from (folder, zip, HTML)")}
         </div>
       )}
     </section>

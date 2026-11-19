@@ -125,6 +125,8 @@ export interface NewDemoInput {
   structureFirst: boolean;
   /** Local image files to add as references, with optional notes. */
   references?: { path: string; note: string }[];
+  /** Folder with an existing site to start from; copied into the demo's `base/`. */
+  baseSource?: string;
 }
 
 /** Options for the first generation of a demo. */
@@ -282,6 +284,17 @@ export interface ExportOptions {
 }
 
 /** Events of the home chat with the assistant. */
+/** Something attached to a home-chat message: a reference image, or an existing site to start from. */
+export interface AssistantAttachment {
+  kind: "image" | "source";
+  path: string;
+  name: string;
+  /** Data URL thumbnail (images). */
+  preview?: string;
+  /** Number of files (sources). */
+  files?: number;
+}
+
 export type AssistantEvent =
   | { type: "user"; text: string; attachments: string[]; at: string }
   | { type: "assistant"; text: string; at: string }

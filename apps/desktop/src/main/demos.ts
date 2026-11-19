@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { watch, type FSWatcher } from "node:fs";
-import { appendFile, copyFile, mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { appendFile, copyFile, cp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { join, posix } from "node:path";
 import {
   SYSTEM_PROMPT,
@@ -94,10 +94,30 @@ export class DemoService {
     await this.useClientBrand(ref);
     const refs = this.references(ref);
     for (const r of input.references ?? []) await refs.addFile(r.path, r.note);
+    if (input.baseSource) await this.copyBase(ref, input.baseSource);
     const repo = new DemoRepo(dir);
     await repo.init();
     await repo.commitAll("Create demo");
     return meta;
+  }
+
+  /** Put an existing site in `<demo>/base/`, the starting point Claude rebuilds from (replaces any previous one). */
+  private async copyBase(ref: DemoRef, sourceDir: string): Promise<void> {
+    const base = join(this.dir(ref), "base");
+    await rm(base, { recursive: true, force: true });
+    await cp(sourceDir, base, { recursive: true });
+  }
+
+  private hasBase(ref: DemoRef): Promise<boolean> {
+    return stat(join(this.dir(ref), "base")).then((s) => s.isDirectory(), () => false);
+  }
+
+  /** Change an existing demo starting from a new base site. */
+  async chatWithBase(ref: DemoRef, sourceDir: string, text: string): Promise<void> {
+    if (this.isRunning(ref)) throw new Error("Claude is already working on this demo.");
+    await this.copyBase(ref, sourceDir);
+    await new DemoRepo(this.dir(ref)).commitAll("Add base site");
+    return this.chat(ref, `${text}\n\nThe developer added an existing site as a starting point in base/ (original files, read-only; copy what you need into src/, never link to base/). Read it and use it as asked above. Keep the data-pt contract and keep existing keys where the content stays.`);
   }
 
   /** Copy the client's brand tokens into the demo, if the client has a brand. Returns whether it did. */
@@ -242,7 +262,7 @@ export class DemoService {
     return this.task(ref, async (signal) => {
       await this.prepare(ref, opts, signal);
       if (signal.aborted) return false;
-      const prompt = generatePrompt({ structureFirst: opts.structureFirst });
+      const prompt = generatePrompt({ structureFirst: opts.structureFirst, hasBase: await this.hasBase(ref) });
       const label = opts.structureFirst ? "Propose the site structure" : "Generate the site";
       const r = await this.claudeStep(ref, prompt, signal, label);
       if (!r.ok) return false;
@@ -258,7 +278,7 @@ export class DemoService {
   approveStructure(ref: DemoRef, feedback: string): Promise<void> {
     return this.task(ref, async (signal) => {
       await this.deps.library().updateMeta(ref, (m) => void delete m.pendingStructure);
-      const r = await this.claudeStep(ref, buildFromStructurePrompt(feedback), signal, feedback.trim() ? `Structure approved with changes:\n${feedback.trim()}` : "Structure approved");
+      const r = await this.claudeStep(ref, buildFromStructurePrompt(feedback, await this.hasBase(ref)), signal, feedback.trim() ? `Structure approved with changes:\n${feedback.trim()}` : "Structure approved");
       if (!r.ok) return false;
       return this.finish(ref, signal, "Generate site", { firstVersion: true });
     });

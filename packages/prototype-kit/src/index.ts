@@ -63,9 +63,20 @@ Work only inside the working directory and the directories you were given access
 Do not run builds, servers or installs: the app builds and previews the site itself.
 Finish with a short summary (max 5 bullet points) of what you did, in English.`;
 
-export function generatePrompt(opts: { structureFirst?: boolean } = {}): string {
+/** How to use `base/`, the existing site the developer gave as a starting point. */
+export const BASE_INSTRUCTIONS = `The developer gave an existing site as the starting point: its original files are in base/ (read them, never edit them).
+Rebuild it in src/ as this Prototyper demo:
+- keep its pages, sections, layout, look and copy, except where brief.md asks for changes;
+- follow the tech rules in CLAUDE.md: rewrite the markup as clean static HTML with Tailwind utilities where practical. When the original CSS carries the look, you may keep it: copy the stylesheets into src/assets/ and link them after styles.css, or move the rules into src/styles.css. Tailwind's preflight resets default margins, headings and lists, so restore what the original relied on;
+- copy the images, fonts and icons it uses into src/assets/ and keep using them (they replace the SVG placeholders); use placeholders only for images that are missing;
+- drop server-side code, analytics, trackers, cookie banners and external scripts; rewrite small interactions (menu, accordion, slider) in vanilla JS;
+- put brand colors and fonts of the original in src/tokens.css, unless a client brand is already there;
+- add the data-pt content contract to every visible text and image.`;
+
+export function generatePrompt(opts: { structureFirst?: boolean; hasBase?: boolean } = {}): string {
+  const base = opts.hasBase ? `\n\n${BASE_INSTRUCTIONS}` : "";
   if (opts.structureFirst) {
-    return `Read brief.md, the brand guidelines and the references (if any).
+    return `Read brief.md, the brand guidelines and the references (if any)${opts.hasBase ? ", and the existing site in base/" : ""}.
 Do not write any page yet. Propose the structure of the site:
 - the sitemap, one line per page;
 - for each page, the ordered list of sections with a one-line description of their content and purpose.
@@ -73,12 +84,12 @@ Reply with the structure only, as Markdown.`;
   }
   return `Read brief.md, the brand guidelines and the references (if any), then build the whole site in src/:
 every page listed in the brief, the SVG placeholders in src/assets/, and src/tokens.css adjusted to the brand if needed.
-Respect the data-pt content contract in CLAUDE.md for every visible text and image.`;
+Respect the data-pt content contract in CLAUDE.md for every visible text and image.${base}`;
 }
 
-export function buildFromStructurePrompt(feedback?: string): string {
+export function buildFromStructurePrompt(feedback?: string, hasBase = false): string {
   return `The structure is approved${feedback?.trim() ? ` with these changes:\n\n${feedback.trim()}\n\n` : ". "}Now build the whole site in src/ following it.
-Respect the data-pt content contract in CLAUDE.md for every visible text and image.`;
+Respect the data-pt content contract in CLAUDE.md for every visible text and image.${hasBase ? `\n\n${BASE_INSTRUCTIONS}` : ""}`;
 }
 
 export function lintFixPrompt(report: string): string {
@@ -184,6 +195,7 @@ How to work:
 - Ask a question only when you cannot reasonably proceed: an ambiguous match (two plausible clients or demos), or no idea at all of what the client does. Ask at most one or two short questions in a single message, never a list of form fields. If something is merely nice to have, proceed and mention the assumption in one line.
 - When you create a demo, write a rich brief in the content language from everything the developer said: who the client is, audience, goal and main call to action, sections, tone, facts given. Never invent facts the developer didn't give.
 - Images the developer attaches are listed in their message with their paths. Look at them with Read when relevant. Attach them to the right demo as references with a short note about what to take from them (add_reference, or reference_files when creating a demo).
+- The developer may attach an existing page or site to start from (a folder, a zip, or HTML/CSS files): their message lists these "page sources" with their paths. They may also write a folder path in the message. Pass it as base_source to create_demo (a new demo built from that page), or as source_path to request_change (an existing demo rebuilt or extended from it). If what they want from it is unclear, assume: keep the design and the copy, and apply what they asked. Don't read the whole site yourself; the demo's own session does that.
 - Long jobs (generating a demo, applying a change, extracting a brand) run in the background: start them, then reply briefly. Don't wait for them or poll, and don't describe their result: you haven't seen it yet. Say what you started and any assumption you made; the app tells the developer when the job is done.
 - Publish a demo or share links only when the developer explicitly asks for it.
 - Reply in the developer's language, in one to three short sentences. No headings, no bullet lists unless they help, no recap of the tools you used.`;

@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
 import type {
   ApplyFeedbackInput,
+  AssistantAttachment,
   AssistantEvent,
   BrandEventMessage,
   BrandInfo,
@@ -65,6 +66,8 @@ const api = {
     reset: () => invoke<void>("assistant:reset"),
     attachFile: (path: string) => invoke<string>("assistant:attachFile", path),
     attachData: (data: Uint8Array, ext: string) => invoke<string>("assistant:attachData", data, ext),
+    attach: (paths: string[]) => invoke<AssistantAttachment[]>("assistant:attach", paths),
+    pick: () => invoke<string[]>("assistant:pick"),
   },
   onAssistantEvent: (cb: (event: AssistantEvent) => void) => {
     const listener = (_: unknown, event: AssistantEvent) => cb(event);

@@ -1,16 +1,18 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { createServer, type Server } from "node:http";
-import { appendFile, copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
-import { basename, extname, join } from "node:path";
+import { appendFile, copyFile, mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { basename, extname, isAbsolute, join, resolve } from "node:path";
 import type { AddressInfo } from "node:net";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
 import { ASSISTANT_PROMPT } from "@prototyper/prototype-kit";
-import type { AssistantEvent, DemoRef, Settings, ShareTarget } from "../common/types";
+import type { AssistantAttachment, AssistantEvent, DemoRef, Settings, ShareTarget } from "../common/types";
 import { describeTool, findClaude, runClaude } from "./claude";
 import type { DemoService } from "./demos";
 import type { Library } from "./library";
+import { describeSource, importSource, isSourcePath, listFiles, type ImportedSource } from "./sources";
 
 export interface AssistantDeps {
   library: () => Library;
@@ -22,6 +24,8 @@ export interface AssistantDeps {
   emit: (event: AssistantEvent) => void;
   /** Ask the UI to open a demo. */
   openDemo: (ref: DemoRef) => void;
+  /** Data URL preview of an image. */
+  thumbnail?: (file: string, width: number) => Promise<string | undefined>;
 }
 
 const now = () => new Date().toISOString();
@@ -42,6 +46,8 @@ export class AssistantService {
   private running: AbortController | undefined;
   /** Files the developer attached in this conversation; the only local files tools may use. */
   private readonly attachments = new Set<string>();
+  /** Page sources (existing sites to start from) imported in this conversation, by folder. */
+  private readonly sources = new Map<string, ImportedSource>();
 
   constructor(private readonly deps: AssistantDeps) {}
 
@@ -129,6 +135,54 @@ export class AssistantService {
     await this.saveState({});
     await writeFile(join(this.deps.dataDir, "log.jsonl"), "");
     this.attachments.clear();
+    this.sources.clear();
+  }
+
+  /**
+   * Attach dropped or picked files. Folders, zips and HTML files are a page source: everything in the
+   * same drop is imported together as one site. Otherwise each file must be a reference image.
+   */
+  async attach(paths: string[]): Promise<AssistantAttachment[]> {
+    await mkdir(this.attachmentsDir, { recursive: true });
+    const anySource = (await Promise.all(paths.map(isSourcePath))).some(Boolean);
+    if (anySource) {
+      const src = await importSource(paths, this.attachmentsDir);
+      this.sources.set(src.dir, src);
+      const name = paths.length === 1 ? basename(paths[0]!) : `${basename(paths[0]!)} +${paths.length - 1}`;
+      return [{ kind: "source", path: src.dir, name, files: src.files.length }];
+    }
+    const out: AssistantAttachment[] = [];
+    for (const p of paths) {
+      const saved = await this.attachFile(p);
+      const preview = await this.deps.thumbnail?.(saved, 240);
+      out.push({ kind: "image", path: saved, name: basename(p), ...(preview ? { preview } : {}) });
+    }
+    return out;
+  }
+
+  /**
+   * Resolve a page source a tool asked for: an attached one, or a folder/zip/HTML path the developer
+   * wrote in the chat (imported now). Anything else is refused.
+   */
+  private async resolveSource(path: string): Promise<ImportedSource> {
+    const known = this.sources.get(path);
+    if (known) return known;
+    const abs = resolve(path.startsWith("~/") ? join(homedir(), path.slice(2)) : path);
+    // Imported earlier in this conversation, before an app restart.
+    if (abs.startsWith(this.attachmentsDir + "/") && basename(abs).includes("-source-") && (await isSourcePath(abs))) {
+      const src = { dir: abs, files: await listFiles(abs) };
+      this.sources.set(abs, src);
+      return src;
+    }
+    const said = (await this.log()).flatMap((e) => (e.type === "user" ? [e.text] : [])).join("\n");
+    const tilde = abs.startsWith(homedir()) ? `~${abs.slice(homedir().length)}` : abs;
+    const mentioned = [path, abs, tilde].some((p) => p.length > 1 && said.includes(p.replace(/\/+$/, "")));
+    if (!isAbsolute(abs) || !mentioned) throw new Error(`Not an attached page source, nor a path the developer wrote: ${path}`);
+    if (!(await stat(abs).then(() => true, () => false))) throw new Error(`Not found: ${abs}`);
+    if (!(await isSourcePath(abs))) throw new Error(`Not a folder, zip or HTML file: ${abs}`);
+    const src = await importSource([abs], this.attachmentsDir);
+    this.sources.set(src.dir, src);
+    return src;
   }
 
   /** Copy a dropped file into the attachments folder; returns its new path. */
@@ -155,7 +209,7 @@ export class AssistantService {
     this.running = abort;
     try {
       await this.start();
-      for (const a of attachments) this.attachments.add(a);
+      for (const a of attachments) if (!this.sources.has(a)) this.attachments.add(a);
       await this.record({ type: "user", text, attachments: attachments.map((a) => basename(a)), at: now() });
       this.deps.emit({ type: "phase", message: "", at: now() });
 
@@ -166,7 +220,15 @@ export class AssistantService {
         return;
       }
 
-      const prompt = attachments.length ? `${text}\n\nAttached images:\n${attachments.map((a) => `- ${a}`).join("\n")}` : text;
+      const images = attachments.filter((a) => !this.sources.has(a));
+      const sources = attachments.flatMap((a) => (this.sources.has(a) ? [this.sources.get(a)!] : []));
+      const prompt = [
+        text,
+        images.length ? `Attached images:\n${images.map((a) => `- ${a}`).join("\n")}` : "",
+        sources.length ? `Attached page sources (existing sites to start from):\n${sources.map((s) => `- ${s.dir} (${describeSource(s)})`).join("\n")}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n\n");
       const state = await this.state();
       const library = this.deps.library();
       await mkdir(library.root, { recursive: true });
@@ -333,24 +395,27 @@ export class AssistantService {
           name: z.string().min(1).describe("short demo name, e.g. 'Landing 2027'"),
           brief: z.string().min(1).describe("rich brief in the content language: client, audience, goal and call to action, sections, tone, known facts"),
           language: z.string().default("Italian").describe("language of the site's copy"),
-          pages: z.array(z.string()).default(["Home"]),
+          pages: z.array(z.string()).optional().describe("page names; default Home, or the pages of base_source"),
           extract_brand: z.boolean().default(false),
           structure_first: z.boolean().default(false).describe("only propose a sitemap first; pages are built after the developer approves"),
           reference_urls: z.array(z.string()).default([]).describe("websites to capture as reference screenshots"),
           reference_files: z.array(z.object({ path: z.string(), note: z.string().default("") })).default([]).describe("attached images to use as references"),
+          base_source: z.string().optional().describe("an attached page source, or a folder/zip path the developer wrote: the demo is rebuilt from that existing site"),
         },
       },
       (args) =>
         guard(async () => {
           for (const f of args.reference_files) if (!this.attachments.has(f.path)) return fail(`Not an attached file: ${f.path}`);
+          const base = args.base_source ? await this.resolveSource(args.base_source) : undefined;
           const meta = await demos.create({
             client: args.client,
             name: args.name,
             language: args.language,
-            pages: args.pages,
+            pages: args.pages?.length ? args.pages : base ? pagesOf(base) : ["Home"],
             brief: args.brief,
             structureFirst: args.structure_first,
             references: args.reference_files,
+            ...(base ? { baseSource: base.dir } : {}),
           });
           const r = { client: args.client, demo: meta.slug };
           action("Started demo “{name}”", { name: meta.name }, r);
@@ -368,8 +433,13 @@ export class AssistantService {
     mcp.registerTool(
       "request_change",
       {
-        description: "Ask the demo's own Claude session to change an existing demo (text, layout, sections, style). Runs in the background.",
-        inputSchema: { ...ref, instructions: z.string().min(1).describe("the change, written as the developer would ask it") },
+        description:
+          "Ask the demo's own Claude session to change an existing demo (text, layout, sections, style). With source_path, an existing site is given to it as a starting point for the change. Runs in the background.",
+        inputSchema: {
+          ...ref,
+          instructions: z.string().min(1).describe("the change, written as the developer would ask it"),
+          source_path: z.string().optional().describe("an attached page source, or a folder/zip path the developer wrote"),
+        },
       },
       (args) =>
         guard(async () => {
@@ -377,7 +447,8 @@ export class AssistantService {
           if (demos.isRunning(r)) return fail("Claude is already working on this demo; try again when it finishes.");
           const meta = await library().readMeta(r);
           action("Asked for changes to “{name}”", { name: meta.name }, r);
-          void demos.chat(r, args.instructions).then(() => this.notifyJob(r, "Changes to “{name}” are done", { name: meta.name }, true));
+          const base = args.source_path ? await this.resolveSource(args.source_path) : undefined;
+          void (base ? demos.chatWithBase(r, base.dir, args.instructions) : demos.chat(r, args.instructions)).then(() => this.notifyJob(r, "Changes to “{name}” are done", { name: meta.name }, true));
           return ok({ status: "change started in the background" });
         }),
     );
@@ -461,4 +532,18 @@ export class AssistantService {
 
     return mcp;
   }
+}
+
+/** Page names from a site's HTML files: index.html → Home, chi-siamo.html → Chi siamo. */
+export function pagesOf(src: ImportedSource): string[] {
+  const html = src.files.filter((f) => /\.html?$/i.test(f) && !f.includes("/"));
+  const list = (html.length ? html : src.files.filter((f) => /\.html?$/i.test(f))).slice(0, 12);
+  const name = (f: string) => {
+    const b = basename(f).replace(/\.html?$/i, "");
+    if (b.toLowerCase() === "index") return "Home";
+    const words = b.replace(/[-_]+/g, " ").trim();
+    return words.charAt(0).toUpperCase() + words.slice(1);
+  };
+  const pages = [...new Set(list.map(name))];
+  return pages.sort((a, b) => (a === "Home" ? -1 : b === "Home" ? 1 : 0));
 }

@@ -16,7 +16,7 @@ Prototyper keeps every demo in a library, gives the client a link where they edi
 
 ## How it works
 
-1. **Ask.** Tell Claude what you need in the home chat, in your own words: "a landing for Pasticceria Rossi, take the style from their site", "in the Studio Bianchi demo make the hero more minimal". It looks at your library, works out the client and the demo, writes the brief, extracts the brand from the client's website when there is one, and only asks what it really can't guess. Drop screenshots in the chat to use them as references.
+1. **Ask.** Tell Claude what you need in the home chat, in your own words: "a landing for Pasticceria Rossi, take the style from their site", "in the Studio Bianchi demo make the hero more minimal". It looks at your library, works out the client and the demo, writes the brief, extracts the brand from the client's website when there is one, and only asks what it really can't guess. Drop screenshots in the chat to use them as references, or an existing page to start from: a folder, a zip, its HTML and CSS files, or just write the folder path.
 2. **Generate.** Prototyper drives your local, logged-in [Claude Code](https://claude.com/claude-code) to build a static HTML + Tailwind site. Every text and image gets a stable key, and a linter makes sure of it.
 3. **Share.** Publish it to your self-hosted share server and send the link.
 

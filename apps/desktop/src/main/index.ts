@@ -92,6 +92,7 @@ const assistant = new AssistantService({
   dataDir: join(app.getPath("userData"), "assistant"),
   emit: (event) => send("assistant:event", event),
   openDemo: (ref) => send("app:openDemo", ref),
+  thumbnail,
 });
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -370,6 +371,14 @@ function registerIpc(): void {
   handle("assistant:reset", () => assistant.reset());
   handle("assistant:attachFile", (path: string) => assistant.attachFile(path));
   handle("assistant:attachData", (data: Uint8Array, ext: string) => assistant.attachData(data, ext));
+  handle("assistant:attach", (paths: string[]) => assistant.attach(paths));
+  handle("assistant:pick", async () => {
+    const r = await dialog.showOpenDialog(mainWindow!, {
+      properties: ["openFile", "openDirectory", "multiSelections"],
+      filters: [{ name: "Images, pages, folders, zip", extensions: ["png", "jpg", "jpeg", "webp", "gif", "html", "htm", "css", "js", "svg", "zip"] }],
+    });
+    return r.canceled ? [] : r.filePaths;
+  });
   handle("library:createClient", (input: NewClientInput) => library().createClient(input));
 
   handle("demo:create", (input: NewDemoInput) => demos.create(input));

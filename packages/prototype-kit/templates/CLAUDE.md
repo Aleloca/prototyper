@@ -10,6 +10,7 @@ Content language: **{{LANGUAGE}}**. Write all visible copy in this language. Cod
 - `src/`: the site. One `.html` file per page, `src/assets/` for images, `src/styles.css` for Tailwind.
 - `src/tokens.css`: brand tokens (colors, fonts, radii) as a Tailwind v4 `@theme`. Use these tokens, don't hard-code brand colors.
 - `{{BRAND_DIR}}/BRAND.md`: brand guidelines, if present. Follow them.
+- `base/`: if present, an existing site the developer gave as the starting point (original files, read-only). Never edit it and never link to it from `src/`: copy what you need.
 - `references/`: screenshots the developer picked as inspiration, with notes in `references/notes.md`. Look at them with the Read tool.
 - `.prototyper/`: managed by the app. Read files there when asked (for example feedback rounds). The only file you may write there is the `replies.json` of the round you are working on.
 

@@ -11,17 +11,23 @@ const IT: Record<string, string> = {
   "tell me what you need": "dimmi cosa ti serve",
   "New conversation": "Nuova conversazione",
   "What do you need?": "Cosa ti serve?",
-  "Describe a new demo, a change to an existing one, a brand to extract… I'll work out the client and the details, and only ask what I really need. You can drop screenshots here.":
-    "Descrivi una nuova demo, una modifica a una esistente, un brand da estrarre… Capisco io il cliente e i dettagli, e ti chiedo solo quello che mi serve davvero. Puoi trascinare qui gli screenshot.",
+  "Describe a new demo, a change to an existing one, a brand to extract… I'll work out the client and the details, and only ask what I really need. You can drop screenshots here, or an existing page to start from: a folder, a zip or its HTML and CSS files.":
+    "Descrivi una nuova demo, una modifica a una esistente, un brand da estrarre… Capisco io il cliente e i dettagli, e ti chiedo solo quello che mi serve davvero. Puoi trascinare qui gli screenshot, o una pagina esistente da cui partire: una cartella, uno zip o i suoi file HTML e CSS.",
   "A landing page for Pasticceria Rossi in Bergamo: artisan cakes, order online. Take the style from pasticceriarossi.it":
     "Una landing per la Pasticceria Rossi di Bergamo: torte artigianali, ordini online. Prendi lo stile da pasticceriarossi.it",
   "In the Studio Bianchi demo, make the hero more minimal and add a FAQ section": "Nella demo dello Studio Bianchi rendi la hero più essenziale e aggiungi le FAQ",
   "Extract the brand of Studio Bianchi from their website": "Estrai il brand dello Studio Bianchi dal loro sito",
   "Thinking…": "Sto pensando…",
   "Describe what you need…  (⌘↵ to send)": "Descrivi cosa ti serve…  (⌘↵ per inviare)",
-  "Drop or paste screenshots to use as references": "Trascina o incolla screenshot da usare come riferimento",
-  "Drop images to attach them": "Rilascia le immagini per allegarle",
   "Here are some references.": "Ecco alcuni riferimenti.",
+  "Start from this page.": "Parti da questa pagina.",
+  "Attach": "Allega",
+  "Importing…": "Importo…",
+  "screenshots, or a page to start from": "screenshot, o una pagina da cui partire",
+  "Screenshots to use as references, or an existing page to start from (folder, zip, HTML and CSS)":
+    "Screenshot da usare come riferimento, o una pagina esistente da cui partire (cartella, zip, HTML e CSS)",
+  "Page to start from · {n} files": "Pagina di partenza · {n} file",
+  "Drop screenshots, or a page to start from (folder, zip, HTML)": "Rilascia screenshot, o una pagina da cui partire (cartella, zip, HTML)",
   "Claude at work": "Claude al lavoro",
   "Tell Claude what you need in the chat on the left: your demos will appear here.": "Scrivi a Claude cosa ti serve nella chat a sinistra: le demo compariranno qui.",
   "Created client {name}": "Creato il cliente {name}",
