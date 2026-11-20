@@ -32,9 +32,10 @@ rsync -az --delete --exclude node_modules --exclude .env "$ROOT/apps/server/dist
 sed -e '/^#/d' -e "s#__CERTS_DIR__#$CERTS_DIR#g" -e "s#__PORT__#$PORT#g" "$ROOT/deploy/nginx-prototyper.conf" | ssh "$SSH_HOST" "cat > '$APP_DIR/nginx-prototyper.conf'"
 
 echo "→ Installing, configuring nginx and (re)starting $PM2_NAME"
-ssh "$SSH_HOST" bash -s -- "$APP_DIR" "$DATA_DIR" "$PORT" "$PM2_NAME" "$PANEL_HOST" "$ACME_EMAIL" "$CERTS_DIR" <<'REMOTE'
+ssh "$SSH_HOST" bash -s -- "$APP_DIR" "$DATA_DIR" "$PORT" "$PM2_NAME" "$PANEL_HOST" "${ACME_EMAIL:--}" "$CERTS_DIR" <<'REMOTE'
 set -euo pipefail
 APP_DIR="$1"; DATA_DIR="$2"; PORT="$3"; PM2_NAME="$4"; PANEL_HOST="$5"; ACME_EMAIL="$6"; CERTS_DIR="$7"
+[ "$ACME_EMAIL" = "-" ] && ACME_EMAIL=""   # (ssh drops empty arguments)
 # Non-interactive ssh shells often miss node's bin dir (e.g. nvm installs): add the one next to `node`.
 export PATH="/usr/local/bin:$PATH"
 NODE_BIN="$(dirname "$(readlink -f "$(command -v node)")")"
