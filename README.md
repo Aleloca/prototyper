@@ -3,62 +3,89 @@
 <h1 align="center">Prototyper</h1>
 
 <p align="center">
-Build landing-page and small-site <strong>demos with Claude Code</strong>, share them with clients who <strong>edit texts, swap images and leave notes</strong> right on the page, and iterate version after version until it's approved. Then hand it over to development.
+Client review links for website prototypes, driven from <strong>Claude Code</strong>. Publish a demo with one sentence, send the link, and the client <strong>edits texts, swaps images and leaves notes</strong> right on the page. Then ask Claude to apply the feedback and publish the next version on the same link.
 </p>
 
-<p align="center"><img src="docs/images/workspace.jpg" alt="A demo open in Prototyper: live preview on the left, Claude panel on the right"></p>
+<p align="center"><img src="docs/images/panel-project.jpg" alt="A project in the Prototyper panel: the client link, versions and a live preview"></p>
 
 ## Why
 
-Agency work often starts with a demo: a landing page or a few pages to agree on design and copy with the client. Claude Code builds those quickly, but the back-and-forth is slow: screenshots in emails, "change this sentence", "can we use our photo here", lost notes.
+Agency work often starts with a prototype: a landing page or a few pages to agree on design and copy with the client. Claude Code builds those quickly; the slow part is the back-and-forth: screenshots in emails, "change this sentence", "can we use our photo here", lost notes.
 
-Prototyper keeps every demo in a library, gives the client a link where they edit and comment **directly on the demo**, and turns their feedback into the next version: their edits are applied as they are, their notes go to Claude.
+Prototyper gives the client a link where they edit and comment **directly on the prototype**, and gives Claude the tools to read that feedback, apply it and publish the next version. You build however you like (plain HTML, Astro, Vite, Next static export…); Prototyper hosts the review.
 
 ## How it works
 
-1. **Ask.** Tell Claude what you need in the home chat, in your own words: "a landing for Pasticceria Rossi, take the style from their site", "in the Studio Bianchi demo make the hero more minimal". It looks at your library, works out the client and the demo, writes the brief, extracts the brand from the client's website when there is one, and only asks what it really can't guess. Drop screenshots in the chat to use them as references, or an existing page to start from: a folder, a zip, its HTML and CSS files, or just write the folder path.
-2. **Generate.** Prototyper drives your local, logged-in [Claude Code](https://claude.com/claude-code) to build a static HTML + Tailwind site. Every text and image gets a stable key, and a linter makes sure of it.
-3. **Share.** Publish it to your self-hosted share server and send the link.
+1. **Build** the prototype with Claude Code in your own project. The Prototyper skill adds `data-pt` attributes to texts and images: that's what makes them editable by the client.
+2. **Publish.** *"Create the preview on Prototyper for Studio Rossi."* Claude builds the site and calls `publish`: you get a link like `https://preview.example.com/s/…/`.
+3. **The client reviews.** No account needed. They switch between *View*, *Edit* and *Comment*: click a text to rewrite it, click an image to replace it, click anywhere to pin a note, then press *I'm done*.
 
-   <img src="docs/images/share.jpg" alt="Share dialog with the client link and the review round status">
+   <img src="docs/images/overlay.jpg" alt="Client view of a prototype with the review toolbar and a pinned note">
 
-4. **The client reviews.** No account needed. They switch between *View*, *Edit* and *Comment*: click a text to rewrite it, click an image to replace it, click anywhere to pin a note, then press *I'm done*.
-
-   <img src="docs/images/overlay.jpg" alt="Client view of a demo with the review toolbar and a pinned note">
-
-5. **Import.** You get a notification. Review each edit and note, accept or reject them. Accepted edits are written into the pages by key, without the model; accepted notes go to Claude together with a screenshot of the commented spot.
-
-   <img src="docs/images/feedback.jpg" alt="Feedback review: notes for Claude with screenshots of the commented area">
-
-6. **Next version.** Claude addresses the notes and writes a changelog plus a reply to every note. Publish again on the **same link**: the client sees what's new and the answers to their notes.
+4. **Apply.** *"Check if the client left feedback and apply it."* Claude reads the edits (by key, with the uploaded images) and the notes, changes the sources, publishes the next version with a changelog, and replies to every note.
+5. **Same link, next version.** The client sees what's new and the answers to their notes.
 
    <img src="docs/images/overlay-news.jpg" alt="Client view: what's new in version 3 and the reply to a previous note">
 
-7. **Export.** When it's approved, export the static site, or a **handoff pack** for developers: the prototype, the approved copy as `content.json` (by page and key), brand tokens and guidelines, the history of decisions with the client, a `HANDOFF.md` written by Claude and a `CLAUDE.md` to start the real project.
+## The panel
+
+Everything published lives in a web panel: workspaces, clients and projects, every version with its preview (desktop, tablet, mobile), the client's edits and notes, the link (copy, read-only, disable, regenerate).
+
+<img src="docs/images/panel-projects.jpg" alt="Projects of a workspace, grouped by client, with their review status">
+
+<img src="docs/images/panel-feedback.jpg" alt="Client feedback in the panel: notes and edits, before and after">
+
+- **Workspaces** group clients, projects and preview domains. Members see everything in their workspaces; an admin manages people, workspaces and domains.
+- **People** join through an invite link. Two-factor authentication (TOTP) is optional for the panel and **required to connect Claude Code**.
+- **Preview domains** are added from the panel: point the DNS to the server, add the domain, and Prototyper gets the HTTPS certificate by itself.
+- The panel is in English and Italian.
 
 ## Install
 
-**Requirements:** macOS on Apple Silicon, and [Claude Code](https://claude.com/claude-code) installed and logged in. Prototyper uses your own Claude Code: it stores no API keys.
+### 1. The server
 
-1. Download `Prototyper-<version>-arm64.dmg` from [Releases](https://github.com/Aleloca/prototyper/releases) and drag Prototyper to Applications. Release builds are signed and notarized by Apple.
-2. Open it. On first launch it checks that Claude Code is available; set its path in Settings if it isn't found.
-3. To share demos with clients, deploy a share server ([self-hosting guide](docs/self-hosting.md)) and add its domain in **Settings → Share domains**. Everything else works without one.
+Self-hosted, one Node process with SQLite, behind nginx (it coexists with the other sites on the machine). See **[docs/self-hosting.md](docs/self-hosting.md)**:
 
-The interface is available in English and Italian (Settings → Interface language).
+```sh
+SSH_HOST=myserver PANEL_HOST=prototyper.example.com ./deploy/deploy.sh
+ssh myserver '/var/www/prototyper/prototyper create-admin you@example.com'
+```
 
-## Self-hosting the share server
+### 2. The Claude Code plugin
 
-A single Node process with SQLite (built into Node), deployed behind nginx with pm2. One server can serve several domains, and each demo answers only on the domain it was published to. See [docs/self-hosting.md](docs/self-hosting.md).
+```sh
+claude plugin marketplace add Aleloca/prototyper
+claude plugin install prototyper@prototyper
+```
+
+It adds the `prototyper` MCP server (Node 20+), the skill that teaches Claude the review workflow, and the `/prototyper:publish` and `/prototyper:feedback` commands. Then, in Claude Code: *"Sign in to Prototyper at prototyper.example.com"*. The browser opens: password, 2FA code, *Authorize*. Done once per computer; you can disconnect it from **Account** in the panel.
+
+MCP tools: `login`, `whoami`, `list_projects`, `link_project`, `lint`, `publish`, `check_feedback`, `reply`. Each project folder gets a small `.prototyper.json` with the project it publishes to: commit it, and teammates publish to the same link.
+
+## The content contract
+
+What the client can edit is marked in the HTML:
+
+```html
+<h1 data-pt="home.hero.title">Tax advice for business owners</h1>
+<p data-pt="home.hero.lead" data-pt-type="rich">At your side for <b>20 years</b>.</p>
+<img data-pt="home.hero.image" src="assets/hero.jpg" alt="Our team">
+<a data-pt="home.hero.cta" href="contact.html">Book a call</a>
+```
+
+Keys are stable across versions, so the client's edits always land in the right place. The `lint` tool checks the rules; the skill ([plugin/skills/prototyper/SKILL.md](plugin/skills/prototyper/SKILL.md)) explains them to Claude.
 
 ## Repository
 
 | Path | What |
 |---|---|
-| [`apps/desktop`](apps/desktop) | Electron app: library, Claude runner, build and preview, versions, sharing, feedback import, brand, export |
-| [`apps/server`](apps/server) | Share server: serves demos to clients and stores their edits, images and notes |
-| [`packages/overlay`](packages/overlay) | Review toolbar injected into shared demos |
-| [`packages/shared`](packages/shared) | The `data-pt` content contract: linter, edit application, export helpers |
-| [`packages/prototype-kit`](packages/prototype-kit) | `CLAUDE.md` templates, prompts and starter files |
+| [`apps/server`](apps/server) | Fastify server: panel API, MCP API, OAuth login, review links, certificates |
+| [`apps/panel`](apps/panel) | The panel (React, Tailwind), served by the server |
+| [`packages/overlay`](packages/overlay) | Review toolbar injected into review links |
+| [`packages/shared`](packages/shared) | The `data-pt` contract: linter and edit application |
+| [`packages/mcp`](packages/mcp) | The MCP server, bundled into the plugin |
+| [`plugin`](plugin) | Claude Code plugin: MCP server, skill, commands |
+| [`deploy`](deploy) | Deploy script and nginx site |
 | [`docs/DESIGN.md`](docs/DESIGN.md) | Architecture and design decisions |
 
 ## Development
@@ -69,16 +96,10 @@ Requires Node 22.5+ and pnpm.
 pnpm install
 pnpm test
 pnpm typecheck
-pnpm --filter @prototyper/desktop dev
+pnpm build
 ```
 
-Try the app without touching your real library and settings:
-
-```sh
-PROTOTYPER_LIBRARY=/tmp/pt-lib PROTOTYPER_USER_DATA=/tmp/pt-data pnpm --filter @prototyper/desktop dev
-```
-
-Build the macOS app: `pnpm --filter @prototyper/desktop dist` (output in `apps/desktop/release/`). See [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/releasing.md](docs/releasing.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md) and the local setup in [docs/self-hosting.md](docs/self-hosting.md#local-development).
 
 ## License
 

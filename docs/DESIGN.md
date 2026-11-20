@@ -1,6 +1,6 @@
 # Prototyper — Design & Architecture
 
-> Status: proposal (v1, server-first pivot) · 2026-11-20
+> Status: implemented (v1.0, server-first pivot) · 2026-11-20
 >
 > Supersedes the desktop-app design (v0.1–0.3). The Electron app is removed; the share server becomes the product.
 
@@ -76,7 +76,7 @@ The panel reads; it does not create projects or versions (that's Claude's job). 
 
 ## 6. MCP
 
-A local stdio MCP server, distributed as a **Claude Code plugin** from this repository (MCP + a skill + slash commands). It runs on the developer's machine because `publish` must read the project's files.
+A local stdio MCP server, distributed as a **Claude Code plugin** from this repository (MCP + a skill + slash commands); the repository is also the plugin marketplace (`.claude-plugin/marketplace.json`). It runs on the developer's machine because `publish` must read the project's files.
 
 Tools:
 - `login(server?)`: OAuth 2 authorization code with PKCE and a loopback redirect. Opens `https://<panel>/oauth/authorize?...` in the browser; the user signs in, **must have 2FA enabled** (or is asked to enable it now) and **must enter a fresh TOTP code**, then confirms *Authorize Claude Code on <machine>*. The MCP receives the code on `http://127.0.0.1:<port>/callback`, exchanges it for an API token and stores it in `~/.config/prototyper/credentials.json` (0600). From then on every call acts as that user.
@@ -94,8 +94,7 @@ Authorization is per user: every MCP call is checked against the user's workspac
 
 The server already runs nginx for other sites; **those sites are not touched**. One new nginx site file is added:
 
-- the **panel host** with a normal certbot certificate (one-time setup);
-- a **default server** on ports 80 and 443 for every hostname nginx doesn't otherwise know. Port 80 proxies `/.well-known/acme-challenge/` to Prototyper and redirects the rest to HTTPS. Port 443 loads the certificate by name (`ssl_certificate /var/lib/prototyper/certs/$ssl_server_name/fullchain.pem`) and proxies to Prototyper.
+- a **default server** on ports 80 and 443 for every hostname nginx doesn't otherwise know. Port 80 proxies `/.well-known/acme-challenge/` to Prototyper and redirects the rest to HTTPS. Port 443 loads the certificate by name (`ssl_certificate /var/lib/prototyper-certs/$ssl_server_name/fullchain.pem`) and proxies to Prototyper. The panel host is served the same way, with its certificate also managed by Prototyper.
 
 When an admin adds a domain in the panel, Prototyper checks that its DNS points to the server, obtains a Let's Encrypt certificate itself (ACME HTTP-01, `acme-client`), writes it where nginx reads it, and renews it 30 days before expiry. No nginx reload, no root, no shell. Requests for hostnames that are not an active preview domain get 404.
 

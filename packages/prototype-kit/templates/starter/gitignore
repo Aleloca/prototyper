@@ -1,7 +1,0 @@
-dist/
-.DS_Store
-# Prototyper app state (not part of the demo history)
-.prototyper/log.jsonl
-.prototyper/thumb.png
-.prototyper/build-*/
-.prototyper/export/

@@ -338,6 +338,12 @@ export async function panelRoutes(app: FastifyInstance, ctx: Ctx): Promise<void>
 
     // --- admin -------------------------------------------------------------------------------
 
+    /** Certificates are managed by the server when configured; otherwise TLS is someone else's job. */
+    const activate = (domainId: string) => {
+      if (app.domains) app.domains.activate(domainId);
+      else store.updateDomain(domainId, { status: "active", last_error: null });
+    };
+
     const inviteUrl = (userId: string) => {
       const token = randomToken();
       store.createInvite(sha256(token), userId, addDays(INVITE_DAYS));
@@ -475,7 +481,7 @@ export async function panelRoutes(app: FastifyInstance, ctx: Ctx): Promise<void>
       if (store.domainByHost(body.hostname)) return reply.code(409).send({ error: "This domain is already configured." });
       const d = store.createDomain(randomUUID(), body.workspaceId, body.hostname);
       store.audit(me(req).id, "domain.create", { domain: d.id, hostname: d.hostname }, req.ip);
-      app.domains?.activate(d.id);
+      activate(d.id);
       return { id: d.id, hostname: d.hostname, status: store.domain(d.id)!.status };
     });
 
@@ -490,7 +496,7 @@ export async function panelRoutes(app: FastifyInstance, ctx: Ctx): Promise<void>
         store.updateDomain(id, { workspace_id: body.workspaceId });
       }
       if (body.disabled === true) store.updateDomain(id, { status: "disabled" });
-      if (body.disabled === false) app.domains?.activate(id);
+      if (body.disabled === false) activate(id);
       store.audit(me(req).id, "domain.update", { domain: id, ...body }, req.ip);
       const u = store.domain(id)!;
       return { id: u.id, hostname: u.hostname, status: u.status };
@@ -500,7 +506,7 @@ export async function panelRoutes(app: FastifyInstance, ctx: Ctx): Promise<void>
     api.post("/api/panel/admin/domains/:id/verify", { preHandler: requireAdmin }, async (req, reply) => {
       const { id } = req.params as { id: string };
       if (!store.domain(id)) return reply.code(404).send({ error: "unknown_domain" });
-      app.domains?.activate(id);
+      activate(id);
       return { ok: true };
     });
 

@@ -8,8 +8,6 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -21,3 +19,7 @@ jobs:
       - run: pnpm --filter @prototyper/overlay build
       - run: pnpm typecheck
       - run: pnpm test
+      - run: pnpm --filter @prototyper/panel build && pnpm --filter @prototyper/server build
+      # The plugin ships a bundled MCP server: it must match the sources.
+      - name: Plugin bundle is up to date
+        run: pnpm --filter @prototyper/mcp build && git diff --exit-code plugin/server

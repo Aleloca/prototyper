@@ -52,19 +52,22 @@ function Shell({ me, path, reload }: { me: Me; path: string; reload: () => Promi
     }
   })();
   const ws = match("/w/:id", path);
-  const workspaceId = ws?.id ?? (me.workspaces.some((w) => w.id === remembered) ? remembered! : me.workspaces[0]?.id);
+  // On a project page, the project's workspace (set by the screen once loaded).
+  const [shown, setShown] = useState<string | undefined>();
+  const workspaceId = ws?.id ?? shown ?? (me.workspaces.some((w) => w.id === remembered) ? remembered! : me.workspaces[0]?.id);
 
   useEffect(() => {
     if (path === "/" || path === "/login") navigate(workspaceId ? `/w/${workspaceId}` : "/account", true);
   }, [path, workspaceId]);
   useEffect(() => {
-    if (!ws?.id) return;
+    const id = ws?.id ?? shown;
+    if (!id) return;
     try {
-      localStorage.setItem(LAST_WS, ws.id);
+      localStorage.setItem(LAST_WS, id);
     } catch {
       /* private mode */
     }
-  }, [ws?.id]);
+  }, [ws?.id, shown]);
 
   const project = match("/p/:id", path);
   const logout = async () => {
@@ -75,7 +78,7 @@ function Shell({ me, path, reload }: { me: Me; path: string; reload: () => Promi
 
   let screen;
   if (ws && workspaceId) screen = <Projects key={workspaceId} workspaceId={workspaceId} isAdmin={me.user.isAdmin} />;
-  else if (project) screen = <ProjectScreen key={project.id} id={project.id!} />;
+  else if (project) screen = <ProjectScreen key={project.id} id={project.id!} onWorkspace={setShown} />;
   else if (path === "/account") screen = <Account me={me} onChange={() => void reload()} />;
   else if (path === "/admin" && me.user.isAdmin) screen = <Admin me={me} onChange={() => void reload()} />;
   else if (path === "/" || path === "/login") screen = <Loading />;

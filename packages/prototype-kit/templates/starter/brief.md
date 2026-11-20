@@ -1,7 +1,0 @@
-# Brief
-
-{{BRIEF}}
-
-## Pages
-
-{{PAGES}}

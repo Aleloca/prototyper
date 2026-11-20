@@ -8,7 +8,7 @@ import { Link, navigate, useLocation } from "../router";
 
 type Tab = "preview" | "feedback";
 
-export function ProjectScreen({ id }: { id: string }) {
+export function ProjectScreen({ id, onWorkspace }: { id: string; onWorkspace: (workspaceId: string) => void }) {
   const t = useT();
   const { search } = useLocation();
   const [p, setP] = useState<ProjectDetail | undefined>();
@@ -24,6 +24,9 @@ export function ProjectScreen({ id }: { id: string }) {
     [id],
   );
   useEffect(() => void load(), [load]);
+  useEffect(() => {
+    if (p) onWorkspace(p.workspaceId);
+  }, [p, onWorkspace]);
 
   if (error) return <ErrorText>{t(error)}</ErrorText>;
   if (!p) return <Loading />;
