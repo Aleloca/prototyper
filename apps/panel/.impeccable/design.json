@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-20T12:22:48+00:00",
+  "generatedAt": "2026-11-20T13:17:14+00:00",
   "title": "Design System: Prototyper",
   "extensions": {
     "colorMeta": {
@@ -85,13 +85,13 @@
         "canonical": "#72716a",
         "tonalRamp": [
           "#0b0b09",
-          "#22221e",
-          "#3e3d38",
+          "#22221f",
+          "#3e3d39",
           "#5c5b55",
-          "#7c7b73",
-          "#9f9f98",
+          "#7b7b74",
+          "#9f9f99",
           "#c8c7c3",
-          "#efefeb"
+          "#efeeec"
         ]
       },
       "line": {
@@ -444,14 +444,14 @@
         "displayName": "Overlay Pin",
         "canonical": "#c84c28",
         "tonalRamp": [
-          "#210000",
-          "#450400",
-          "#721600",
-          "#a12a00",
-          "#cc4820",
-          "#e87b5d",
-          "#ffaf98",
-          "#ffdfce"
+          "#1f0000",
+          "#420a00",
+          "#6d1e04",
+          "#9b3312",
+          "#c5502e",
+          "#e18065",
+          "#feb29d",
+          "#ffe1d1"
         ],
         "note": "Overlay note pins only; white numerals on it measure 3.68:1, below AA for small text."
       }
@@ -480,6 +480,10 @@
       "body-sm": {
         "displayName": "Body Small",
         "purpose": "Controls, metadata, secondary text."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Meta lines on chips and lists (activity, times, connection details), the hostname of a domain, small hints."
       },
       "label": {
         "displayName": "Label",
@@ -625,7 +629,7 @@
   ],
   "narrative": {
     "northStar": "The Studio Swatch Book",
-    "overview": "The panel is a printer's swatch book for a small studio. Every client owns one solid spot colour, assigned by the server from a ten-ink palette and distinct within a workspace, and every project is a chip cut from that colour: a coloured block carrying the swatch code and project name, above a white label strip that prints the review state, version, activity and time. The ground is uncoated paper, the cards are white stock, the type is black ink. Colour means *who*; printed marks mean *where the review stands*. The two never trade jobs.\n\nDensity is calm and operational. Helvetica Neue in bold, tight headlines and one small tracked caps label size give it the feel of printed production paperwork rather than a SaaS dashboard. Depth is a paper stack: chips sit on the paper with a hairline shadow and lift a few pixels when touched. The system refuses the grey SaaS table with coloured status pills: status is a printed mark next to words, never a filled pill and never the chip's colour.\n\nThe same world reaches the client review overlay (`packages/overlay`): ink toolbar segments, white floating cards, the same hairlines, radii and focus colour, so the client and the studio see one material.",
+    "overview": "The panel is a printer's swatch book for a small studio. Every client owns one solid spot colour, assigned by the server from a ten-ink palette and distinct within a workspace, and every project is a chip cut from that colour: a coloured block carrying the swatch code and project name, above a white label strip that prints the review state, version, activity and time. The ground is uncoated paper, the cards are white stock, the type is black ink. Colour means *who*; printed marks mean *where the review stands*. The two never trade jobs.\n\nDensity is calm and operational. Helvetica Neue in bold, tight headlines and one small tracked caps label size give it the feel of printed production paperwork rather than a SaaS dashboard. Depth is a paper stack: chips sit on the paper with a hairline shadow and lift a few pixels when touched. The system refuses the grey SaaS table with coloured status pills: status is a printed mark next to words, never a filled pill and never the chip's colour.\n\nThe same world reaches the client review overlay (`../../packages/overlay`): ink toolbar segments, white floating cards, the same hairlines, radii and focus colour, so the client and the studio see one material.",
     "keyCharacteristics": [
       "Paper ground, white stock, warm-grey hairlines, near-black ink.",
       "One solid spot colour per client, never a gradient, never a status signal.",
@@ -681,7 +685,7 @@
       "**Don't** add gradients, tints or transparency to spot inks.",
       "**Don't** introduce a second label size or a web font; the stack is Helvetica Neue, Helvetica, Arial.",
       "**Don't** use hard offset shadows or heavy borders; depth is a soft ink-tinted paper stack.",
-      "**Don't** set small text in Pale Grey (faint) where it must be read; it is for marks and decorative hints, and falls below 4.5:1 on paper.",
+      "**Don't** go lighter than Pale Grey (faint) for any text: it is the lightest grey that still reaches 4.5:1 on paper.",
       "**Don't** round corners past 6px on rectangles."
     ]
   }

@@ -10,6 +10,8 @@ interface Config {
 }
 
 type Mode = "view" | "edit" | "comment";
+type Device = "desktop" | "tablet" | "mobile";
+const DEVICE_WIDTH: Record<Exclude<Device, "desktop">, number> = { tablet: 820, mobile: 390 };
 
 const SAVE_DEBOUNCE_MS = 800;
 const supportsPlaintextOnly = (() => {
@@ -105,6 +107,7 @@ class Overlay {
   private author = storage.get("pt:author") ?? "";
   private mode: Mode = "view";
   private hidden = storage.session("pt:hidden") === "1";
+  private device: Device = (["tablet", "mobile"] as const).find((d) => d === storage.session("pt:device")) ?? "desktop";
 
   private readonly host = document.createElement("prototyper-review");
   private readonly root = h("div", { class: "root" });
@@ -615,17 +618,45 @@ class Overlay {
 
   private render(): void {
     this.fixed.replaceChildren();
+    // Tablet / mobile: the same page in a frame at that width (view only; the framed copy runs no overlay).
+    this.layer.style.display = this.device === "desktop" ? "" : "none";
+    if (this.device !== "desktop") {
+      const w = DEVICE_WIDTH[this.device];
+      this.fixed.append(
+        h(
+          "div",
+          { class: "stage" },
+          h("iframe", { class: "device", title: this.t[this.device], src: location.pathname + location.search, style: `width:${w}px` }),
+        ),
+      );
+    }
     if (this.hidden) {
       this.fixed.append(
         h("div", { class: "mini" }, h("button", { class: "tb", onclick: () => this.setHidden(false) }, icon("pen"), h("span", { class: "label" }, this.t.show))),
       );
     } else {
       this.fixed.append(this.renderBar());
-      const hint = this.mode === "edit" ? this.t.editHint : this.mode === "comment" ? this.t.commentHint : null;
+      const hint =
+        this.device !== "desktop"
+          ? this.t.deviceHint.replace("{device}", this.t[this.device])
+          : this.mode === "edit"
+            ? this.t.editHint
+            : this.mode === "comment"
+              ? this.t.commentHint
+              : null;
       if (hint) this.fixed.append(h("div", { class: "hint" }, hint));
     }
     if (this.drawer) this.fixed.append(this.renderDrawer());
     this.layout();
+  }
+
+  private setDevice(device: Device): void {
+    this.device = device;
+    storage.session("pt:device", device);
+    if (device !== "desktop") {
+      this.drawer = null;
+      this.setMode("view"); // renders
+    } else this.render();
   }
 
   private setHidden(hidden: boolean): void {
@@ -638,14 +669,26 @@ class Overlay {
   private renderBar(): HTMLElement {
     const t = this.t;
     const bar = h("div", { class: "bar", role: "toolbar", "aria-label": "Review" });
+    const framed = this.device !== "desktop";
     const modeBtn = (mode: Mode, ic: Parameters<typeof icon>[0], label: string) =>
-      h("button", { class: "tb", "aria-pressed": String(this.mode === mode), onclick: () => void this.switchMode(mode) }, icon(ic), h("span", { class: "label" }, label));
+      h(
+        "button",
+        { class: "tb", "aria-pressed": String(this.mode === mode), disabled: framed && mode !== "view", onclick: () => void this.switchMode(mode) },
+        icon(ic),
+        h("span", { class: "label" }, label),
+      );
+    const deviceBtn = (d: Device, ic: Parameters<typeof icon>[0]) =>
+      h("button", { class: "tb icon-only", "aria-pressed": String(this.device === d), "aria-label": t[d], title: t[d], onclick: () => this.setDevice(d) }, icon(ic));
 
     if (this.state.editable) {
       bar.append(h("div", { class: "seg" }, modeBtn("view", "eye", t.view), modeBtn("edit", "pen", t.edit), modeBtn("comment", "note", t.comment)), h("div", { class: "sep" }));
     } else {
       bar.append(h("span", { class: "badge", title: this.state.round.status === "imported" ? t.importedHint : t.readOnlyHint }, t.readOnly));
     }
+    bar.append(
+      h("div", { class: "seg devices", role: "group", "aria-label": t.deviceGroup }, deviceBtn("desktop", "laptop"), deviceBtn("tablet", "tablet"), deviceBtn("mobile", "phone")),
+      h("div", { class: "sep devices" }),
+    );
 
     bar.append(
       h(
@@ -812,7 +855,9 @@ class Overlay {
 }
 
 const cfg = (window as unknown as { __PT__?: Config }).__PT__;
-if (cfg && !(window as unknown as { __PT_STARTED__?: boolean }).__PT_STARTED__) {
+// Inside the tablet/mobile preview frame the page shows as the client would see it, without the overlay.
+const framed = window.self !== window.top;
+if (cfg && !framed && !(window as unknown as { __PT_STARTED__?: boolean }).__PT_STARTED__) {
   (window as unknown as { __PT_STARTED__: boolean }).__PT_STARTED__ = true;
   const boot = () => void new Overlay(cfg).start();
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
