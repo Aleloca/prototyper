@@ -59,14 +59,14 @@ export function Invite({ token }: { token: string }) {
         <div>
           <label className="label" htmlFor="pw">{t("Password")}</label>
           <input id="pw" className="input" type="password" required minLength={10} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
-          <p className="mt-1 text-[12px] text-faint">{t("At least 10 characters.")}</p>
+          <p className="mt-1 text-[12.5px] text-faint">{t("At least 10 characters.")}</p>
         </div>
         <div>
           <label className="label" htmlFor="pw2">{t("Repeat the password")}</label>
           <input id="pw2" className="input" type="password" required autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
         </div>
         <ErrorText>{error}</ErrorText>
-        <button className="btn btn-primary py-2" disabled={busy}>
+        <button className="btn btn-primary h-10" disabled={busy}>
           {t("Save and sign in")}
         </button>
       </form>

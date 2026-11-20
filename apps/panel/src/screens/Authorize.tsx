@@ -40,7 +40,7 @@ export function Authorize({ me }: { me: Me; onChange: () => void }) {
     return (
       <AuthCard title={t("Turn on two-factor authentication")} subtitle={me.user.email}>
         <p className="mb-4">{t("Connecting Claude Code requires two-factor authentication. Turn it on in your account, then come back here.")}</p>
-        <Link to="/account" className="btn btn-primary w-full py-2">
+        <Link to="/account" className="btn btn-primary h-10 w-full">
           {t("Go to Account")}
         </Link>
       </AuthCard>
@@ -86,7 +86,7 @@ export function Authorize({ me }: { me: Me; onChange: () => void }) {
         <p>
           {t("{client} wants to use Prototyper as you: publish projects and read client feedback in your workspaces.", { client: clientName })}
         </p>
-        <ul className="rounded-md bg-canvas px-3 py-2 text-[13px] text-muted">
+        <ul className="rounded-md bg-wash px-3 py-2 text-[13px] text-muted">
           {me.workspaces.map((w) => (
             <li key={w.id}>· {w.name}</li>
           ))}
@@ -95,7 +95,7 @@ export function Authorize({ me }: { me: Me; onChange: () => void }) {
           <label className="label" htmlFor="az-code">{t("Code from your authenticator app")}</label>
           <input
             id="az-code"
-            className="input text-center font-mono text-[20px] tracking-[0.3em]"
+            className="input text-center font-mono text-[19px] tracking-[0.3em]"
             inputMode="numeric"
             autoComplete="one-time-code"
             maxLength={7}
@@ -106,13 +106,13 @@ export function Authorize({ me }: { me: Me; onChange: () => void }) {
           />
         </div>
         <ErrorText>{error}</ErrorText>
-        <button className="btn btn-primary py-2" disabled={busy}>
+        <button className="btn btn-primary h-10" disabled={busy}>
           {t("Authorize")}
         </button>
         <button type="button" className="text-[13px] text-muted hover:underline" onClick={() => setDone("denied")}>
           {t("Deny")}
         </button>
-        <p className="text-center text-[12px] text-faint">{t("You can disconnect it anytime from Account.")}</p>
+        <p className="text-center text-[12.5px] text-faint">{t("You can disconnect it anytime from Account.")}</p>
       </form>
     </AuthCard>
   );

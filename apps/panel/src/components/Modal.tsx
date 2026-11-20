@@ -1,28 +1,38 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
+import { X } from "./icons";
 
+/** A native <dialog>: focus is trapped and restored by the browser, Esc closes. */
 export function Modal(props: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode; width?: string }) {
+  const ref = useRef<HTMLDialogElement>(null);
   const { onClose } = props;
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+    const d = ref.current;
+    if (d && !d.open) d.showModal();
+    const onCancel = (e: Event) => {
+      e.preventDefault();
+      onClose();
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    d?.addEventListener("cancel", onCancel);
+    return () => d?.removeEventListener("cancel", onCancel);
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/25 p-4" onMouseDown={onClose}>
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={props.title}
-        className={`flex max-h-full w-full flex-col rounded-xl border border-line bg-panel shadow-xl ${props.width ?? "max-w-lg"}`}
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        <div className="border-b border-line px-5 py-3.5 text-[15px] font-semibold">{props.title}</div>
-        <div className="min-h-0 overflow-y-auto px-5 py-4">{props.children}</div>
-        {props.footer && <div className="flex flex-wrap justify-end gap-2 border-t border-line px-5 py-3">{props.footer}</div>}
+    <dialog
+      ref={ref}
+      aria-label={props.title}
+      className={`m-auto w-[calc(100%-32px)] rounded-[6px] bg-stock p-0 text-ink shadow-[var(--shadow-pop)] backdrop:bg-ink/30 ${props.width ?? "max-w-lg"}`}
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="flex items-center gap-3 border-b border-line px-6 py-4">
+        <h2 className="flex-1 text-[16px] font-bold tracking-[-0.01em]">{props.title}</h2>
+        <button type="button" className="btn btn-ghost btn-sm -mr-2 px-2" aria-label="Close" onClick={onClose}>
+          <X aria-hidden />
+        </button>
       </div>
-    </div>
+      <div className="max-h-[70vh] overflow-y-auto px-6 py-5">{props.children}</div>
+      {props.footer && <div className="flex flex-wrap justify-end gap-2 border-t border-line bg-paper px-6 py-4">{props.footer}</div>}
+    </dialog>
   );
 }

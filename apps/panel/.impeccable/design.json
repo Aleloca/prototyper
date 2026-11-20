@@ -1,0 +1,688 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-20T12:22:48+00:00",
+  "title": "Design System: Prototyper",
+  "extensions": {
+    "colorMeta": {
+      "paper": {
+        "role": "neutral",
+        "displayName": "Uncoated Paper",
+        "canonical": "#fafaf7",
+        "tonalRamp": [
+          "#0b0b0a",
+          "#222220",
+          "#3d3d3b",
+          "#5b5b59",
+          "#7a7a78",
+          "#9e9e9c",
+          "#c7c7c6",
+          "#eeeeed"
+        ]
+      },
+      "stock": {
+        "role": "neutral",
+        "displayName": "White Stock",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#222222",
+          "#3d3d3d",
+          "#5b5b5b",
+          "#7a7a7a",
+          "#9e9e9e",
+          "#c7c7c7",
+          "#eeeeee"
+        ]
+      },
+      "ink": {
+        "role": "primary",
+        "displayName": "Press Ink",
+        "canonical": "#151515",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#222222",
+          "#3d3d3d",
+          "#5b5b5b",
+          "#7a7a7a",
+          "#9e9e9e",
+          "#c7c7c7",
+          "#eeeeee"
+        ]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Second Ink",
+        "canonical": "#3a3a36",
+        "tonalRamp": [
+          "#0b0b0a",
+          "#222220",
+          "#3d3d3a",
+          "#5b5b57",
+          "#7b7b76",
+          "#9f9f9b",
+          "#c7c7c5",
+          "#eeeeed"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Warm Grey",
+        "canonical": "#5f5e58",
+        "tonalRamp": [
+          "#0b0b09",
+          "#22221f",
+          "#3e3d39",
+          "#5c5b56",
+          "#7b7a74",
+          "#9f9e99",
+          "#c8c7c3",
+          "#efeeec"
+        ]
+      },
+      "faint": {
+        "role": "neutral",
+        "displayName": "Pale Grey",
+        "canonical": "#72716a",
+        "tonalRamp": [
+          "#0b0b09",
+          "#22221e",
+          "#3e3d38",
+          "#5c5b55",
+          "#7c7b73",
+          "#9f9f98",
+          "#c8c7c3",
+          "#efefeb"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#e6e5df",
+        "tonalRamp": [
+          "#0b0b0a",
+          "#22221f",
+          "#3e3d3a",
+          "#5c5b56",
+          "#7b7a75",
+          "#9f9e9a",
+          "#c8c7c4",
+          "#efeeec"
+        ]
+      },
+      "line-strong": {
+        "role": "neutral",
+        "displayName": "Strong Hairline",
+        "canonical": "#d6d5cd",
+        "tonalRamp": [
+          "#0b0b09",
+          "#22221f",
+          "#3e3d39",
+          "#5c5b55",
+          "#7b7b74",
+          "#9f9f99",
+          "#c8c7c3",
+          "#efeeeb"
+        ]
+      },
+      "wash": {
+        "role": "neutral",
+        "displayName": "Wash",
+        "canonical": "#f2f1ec",
+        "tonalRamp": [
+          "#0b0b0a",
+          "#222220",
+          "#3e3d3a",
+          "#5c5b57",
+          "#7b7a76",
+          "#9f9e9b",
+          "#c8c7c4",
+          "#efeeec"
+        ]
+      },
+      "attention": {
+        "role": "tertiary",
+        "displayName": "Burnt Amber",
+        "canonical": "#a85a12",
+        "tonalRamp": [
+          "#1a0500",
+          "#391600",
+          "#5f2e00",
+          "#894707",
+          "#b06527",
+          "#cd8e61",
+          "#edbc9a",
+          "#ffe7d0"
+        ]
+      },
+      "attention-wash": {
+        "role": "tertiary",
+        "displayName": "Burnt Amber Wash",
+        "canonical": "#fbf0e2",
+        "tonalRamp": [
+          "#0d0b07",
+          "#25211b",
+          "#423c34",
+          "#61594f",
+          "#82796d",
+          "#a59d93",
+          "#ccc6bf",
+          "#f2eee8"
+        ]
+      },
+      "reviewing": {
+        "role": "tertiary",
+        "displayName": "Reviewing Blue",
+        "canonical": "#1f6f99",
+        "tonalRamp": [
+          "#000d19",
+          "#012538",
+          "#0e425d",
+          "#1f6185",
+          "#3b82ab",
+          "#6fa6c8",
+          "#a5cee8",
+          "#d8f3ff"
+        ]
+      },
+      "reviewing-wash": {
+        "role": "tertiary",
+        "displayName": "Reviewing Blue Wash",
+        "canonical": "#e7f1f7",
+        "tonalRamp": [
+          "#090c0d",
+          "#1e2225",
+          "#383e41",
+          "#555c60",
+          "#737c81",
+          "#98a0a4",
+          "#c3c8cb",
+          "#ebeff1"
+        ]
+      },
+      "done": {
+        "role": "tertiary",
+        "displayName": "Imported Green",
+        "canonical": "#2b7a4b",
+        "tonalRamp": [
+          "#001004",
+          "#042914",
+          "#15482a",
+          "#276a42",
+          "#438c5e",
+          "#75ae87",
+          "#a9d3b6",
+          "#daf7e2"
+        ]
+      },
+      "done-wash": {
+        "role": "tertiary",
+        "displayName": "Imported Green Wash",
+        "canonical": "#e6f2ea",
+        "tonalRamp": [
+          "#090c0a",
+          "#1e2320",
+          "#383f3b",
+          "#545d58",
+          "#737d77",
+          "#98a19b",
+          "#c3c9c5",
+          "#ebf0ed"
+        ]
+      },
+      "danger": {
+        "role": "tertiary",
+        "displayName": "Signal Red",
+        "canonical": "#b8322a",
+        "tonalRamp": [
+          "#200000",
+          "#440605",
+          "#6f1814",
+          "#9e2c25",
+          "#c94a3f",
+          "#e57c6f",
+          "#ffafa4",
+          "#ffdfd6"
+        ]
+      },
+      "danger-wash": {
+        "role": "tertiary",
+        "displayName": "Signal Red Wash",
+        "canonical": "#fbebe9",
+        "tonalRamp": [
+          "#0e0a0a",
+          "#26201f",
+          "#433b3a",
+          "#635856",
+          "#847775",
+          "#a79b9a",
+          "#cec5c4",
+          "#f3edec"
+        ]
+      },
+      "focus": {
+        "role": "tertiary",
+        "displayName": "Focus Blue",
+        "canonical": "#2e86ab",
+        "tonalRamp": [
+          "#000e18",
+          "#002636",
+          "#04435b",
+          "#146382",
+          "#3384a7",
+          "#6ba8c5",
+          "#a2cfe5",
+          "#d6f4ff"
+        ]
+      },
+      "spot-warm-red": {
+        "role": "secondary",
+        "displayName": "Warm Red",
+        "canonical": "#c84c28",
+        "tonalRamp": [
+          "#1f0000",
+          "#420a00",
+          "#6d1e04",
+          "#9b3312",
+          "#c5502e",
+          "#e18065",
+          "#feb29d",
+          "#ffe1d1"
+        ]
+      },
+      "spot-process-blue": {
+        "role": "secondary",
+        "displayName": "Process Blue",
+        "canonical": "#2b7da0",
+        "tonalRamp": [
+          "#000d17",
+          "#002635",
+          "#0b4359",
+          "#1c6380",
+          "#3984a5",
+          "#6ea7c3",
+          "#a5cee4",
+          "#d7f4ff"
+        ]
+      },
+      "spot-yellow": {
+        "role": "secondary",
+        "displayName": "Yellow",
+        "canonical": "#f2c14e",
+        "tonalRamp": [
+          "#150800",
+          "#321d00",
+          "#543700",
+          "#7a5300",
+          "#9e7200",
+          "#bd9948",
+          "#dfc48b",
+          "#ffedc6"
+        ]
+      },
+      "spot-green": {
+        "role": "secondary",
+        "displayName": "Green",
+        "canonical": "#32835a",
+        "tonalRamp": [
+          "#001005",
+          "#032917",
+          "#12482e",
+          "#256a47",
+          "#418c64",
+          "#74ae8c",
+          "#a8d3b9",
+          "#daf7e5"
+        ]
+      },
+      "spot-violet": {
+        "role": "secondary",
+        "displayName": "Violet",
+        "canonical": "#6e56a8",
+        "tonalRamp": [
+          "#0d061d",
+          "#25193e",
+          "#413267",
+          "#604c92",
+          "#806aba",
+          "#a392d5",
+          "#cabff2",
+          "#f0e9ff"
+        ]
+      },
+      "spot-rhodamine": {
+        "role": "secondary",
+        "displayName": "Rhodamine",
+        "canonical": "#c94279",
+        "tonalRamp": [
+          "#1f000a",
+          "#420420",
+          "#6c153b",
+          "#9a2859",
+          "#c44578",
+          "#e1789c",
+          "#feacc6",
+          "#ffdced"
+        ]
+      },
+      "spot-teal": {
+        "role": "secondary",
+        "displayName": "Teal",
+        "canonical": "#138378",
+        "tonalRamp": [
+          "#00100d",
+          "#002924",
+          "#004841",
+          "#056960",
+          "#2b8b80",
+          "#68ada4",
+          "#a1d3cb",
+          "#d5f7f1"
+        ]
+      },
+      "spot-orange": {
+        "role": "secondary",
+        "displayName": "Orange",
+        "canonical": "#f28c28",
+        "tonalRamp": [
+          "#1c0300",
+          "#3e1200",
+          "#662800",
+          "#924000",
+          "#ba5e00",
+          "#d78a49",
+          "#f5b98b",
+          "#ffe5c6"
+        ]
+      },
+      "spot-navy": {
+        "role": "secondary",
+        "displayName": "Navy",
+        "canonical": "#2b3a67",
+        "tonalRamp": [
+          "#060a18",
+          "#192136",
+          "#303c5b",
+          "#4a5983",
+          "#6779a8",
+          "#8e9ec6",
+          "#bbc7e6",
+          "#e6eeff"
+        ]
+      },
+      "spot-olive": {
+        "role": "secondary",
+        "displayName": "Olive",
+        "canonical": "#6e7b2f",
+        "tonalRamp": [
+          "#0a0d00",
+          "#1f2502",
+          "#3a4210",
+          "#566120",
+          "#75823b",
+          "#9aa56d",
+          "#c3cda3",
+          "#ecf3d6"
+        ]
+      },
+      "spot-neutral": {
+        "role": "secondary",
+        "displayName": "Unassigned Grey",
+        "canonical": "#d6d5cd",
+        "tonalRamp": [
+          "#0b0b09",
+          "#22221f",
+          "#3e3d39",
+          "#5c5b55",
+          "#7b7b74",
+          "#9f9f99",
+          "#c8c7c3",
+          "#efeeeb"
+        ]
+      },
+      "overlay-pin": {
+        "role": "tertiary",
+        "displayName": "Overlay Pin",
+        "canonical": "#c84c28",
+        "tonalRamp": [
+          "#210000",
+          "#450400",
+          "#721600",
+          "#a12a00",
+          "#cc4820",
+          "#e87b5d",
+          "#ffaf98",
+          "#ffdfce"
+        ],
+        "note": "Overlay note pins only; white numerals on it measure 3.68:1, below AA for small text."
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Project name on the project page."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Page titles."
+      },
+      "chip-title": {
+        "displayName": "Chip Title",
+        "purpose": "Project name inside a swatch chip's colour block, two lines max."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Section sheets, modal titles, logotype."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Default text."
+      },
+      "body-sm": {
+        "displayName": "Body Small",
+        "purpose": "Controls, metadata, secondary text."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "The one label size: swatch codes, state words, subheads. Uppercase, tabular figures."
+      }
+    },
+    "shadows": [
+      {
+        "name": "chip",
+        "value": "0 1px 2px rgb(21 21 21 / 0.06), 0 0 0 1px rgb(21 21 21 / 0.07)",
+        "purpose": "Chips, sheets, resting fan leaves; the ring replaces a border."
+      },
+      {
+        "name": "lift",
+        "value": "0 10px 24px -8px rgb(21 21 21 / 0.22), 0 0 0 1px rgb(21 21 21 / 0.08)",
+        "purpose": "Hovered or focused chip, selected fan leaf."
+      },
+      {
+        "name": "pop",
+        "value": "0 18px 40px -12px rgb(21 21 21 / 0.28), 0 0 0 1px rgb(21 21 21 / 0.08)",
+        "purpose": "Modals, overlay toolbar, popovers, drawer, toasts."
+      },
+      {
+        "name": "focus-halo",
+        "value": "0 0 0 3px rgb(46 134 171 / 0.18)",
+        "purpose": "Focused input, with an ink border."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state",
+        "value": "150ms ease",
+        "purpose": "Colour, border and shadow changes on controls."
+      },
+      {
+        "name": "chip-lift",
+        "value": "200ms ease-out",
+        "purpose": "Chip rises 2px into the Lift shadow."
+      },
+      {
+        "name": "fan-swing",
+        "value": "300ms cubic-bezier(.2,.8,.2,1)",
+        "purpose": "Selected version leaf swings 14px out of the deck."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "0.01ms",
+        "purpose": "All animation and transition durations under prefers-reduced-motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "container",
+        "value": "1320px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one ink-filled main action of a view.",
+      "html": "<button class=\"ds-btn ds-btn-primary\">Apply feedback</button>",
+      "css": ".ds-btn { font-family: \"Helvetica Neue\", Helvetica, Arial, system-ui, sans-serif; display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border-radius: 4px; border: 1px solid #d6d5cd; background: #ffffff; color: #151515; font-size: 13.5px; font-weight: 500; cursor: pointer; transition: background-color .15s, border-color .15s, box-shadow .15s; } .ds-btn:hover { background: #f2f1ec; border-color: rgb(21 21 21 / .4); } .ds-btn:active { background: #e6e5df; } .ds-btn:focus-visible { outline: 2px solid #2e86ab; outline-offset: 2px; } .ds-btn-primary { background: #151515; border-color: #151515; color: #ffffff; } .ds-btn-primary:hover { background: #3a3a36; border-color: #3a3a36; } .ds-btn-primary:active { background: #000; }"
+    },
+    {
+      "name": "Button",
+      "kind": "button",
+      "refersTo": "button",
+      "description": "Default white key: copy link, meeting mode, secondary actions.",
+      "html": "<button class=\"ds-btn\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\"/><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"/></svg>Copy link</button>",
+      "css": ".ds-btn { font-family: \"Helvetica Neue\", Helvetica, Arial, system-ui, sans-serif; display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border-radius: 4px; border: 1px solid #d6d5cd; background: #ffffff; color: #151515; font-size: 13.5px; font-weight: 500; cursor: pointer; transition: background-color .15s, border-color .15s, box-shadow .15s; } .ds-btn:hover { background: #f2f1ec; border-color: rgb(21 21 21 / .4); } .ds-btn:active { background: #e6e5df; } .ds-btn:focus-visible { outline: 2px solid #2e86ab; outline-offset: 2px; }"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Link-breaking or destructive actions, confirmed in a dialog.",
+      "html": "<button class=\"ds-btn ds-btn-danger\">Disable link</button>",
+      "css": ".ds-btn { font-family: \"Helvetica Neue\", Helvetica, Arial, system-ui, sans-serif; display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border-radius: 4px; border: 1px solid #d6d5cd; background: #ffffff; color: #151515; font-size: 13.5px; font-weight: 500; cursor: pointer; transition: background-color .15s, border-color .15s, box-shadow .15s; } .ds-btn:hover { background: #f2f1ec; border-color: rgb(21 21 21 / .4); } .ds-btn:active { background: #e6e5df; } .ds-btn:focus-visible { outline: 2px solid #2e86ab; outline-offset: 2px; } .ds-btn-danger { color: #b8322a; border-color: rgb(184 50 42 / .35); } .ds-btn-danger:hover { background: #fbebe9; border-color: #b8322a; }"
+    },
+    {
+      "name": "Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Text and search fields.",
+      "html": "<input class=\"ds-input\" type=\"search\" placeholder=\"Search projects and clients\">",
+      "css": ".ds-input { font-family: \"Helvetica Neue\", Helvetica, Arial, system-ui, sans-serif; width: 280px; height: 40px; padding: 0 12px; border: 1px solid #d6d5cd; border-radius: 4px; background: #ffffff; color: #151515; font-size: 14px; outline: none; transition: border-color .15s, box-shadow .15s; } .ds-input::placeholder { color: #72716a; } .ds-input:hover { border-color: rgb(21 21 21 / .35); } .ds-input:focus { border-color: #151515; box-shadow: 0 0 0 3px rgb(46 134 171 / .18); }"
+    },
+    {
+      "name": "Review-State Filter",
+      "kind": "nav",
+      "refersTo": "segmented",
+      "description": "Segmented filter: each segment prints a mark, its words and a tabular count.",
+      "html": "<div class=\"ds-seg\" role=\"group\"><button aria-pressed=\"true\">All <span class=\"ds-n\">12</span></button><button aria-pressed=\"false\"><span class=\"ds-attn\"><svg viewBox=\"0 0 12 12\" width=\"11\" height=\"11\" aria-hidden=\"true\"><circle cx=\"6\" cy=\"6\" r=\"5.25\" fill=\"currentColor\" stroke=\"currentColor\" stroke-width=\"1.5\"/></svg></span>Feedback to import <span class=\"ds-n\">2</span></button><button aria-pressed=\"false\"><span class=\"ds-rev\"><svg viewBox=\"0 0 12 12\" width=\"11\" height=\"11\" aria-hidden=\"true\"><circle cx=\"6\" cy=\"6\" r=\"5.25\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"/><path d=\"M6 .75a5.25 5.25 0 0 1 0 10.5Z\" fill=\"currentColor\"/></svg></span>Client reviewing <span class=\"ds-n\">3</span></button></div>",
+      "css": ".ds-seg { font-family: \"Helvetica Neue\", Helvetica, Arial, system-ui, sans-serif; display: inline-flex; padding: 2px; border: 1px solid #d6d5cd; border-radius: 4px; background: #ffffff; } .ds-seg button { font: inherit; display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border: 0; border-radius: 3px; background: none; color: #5f5e58; font-size: 13px; font-weight: 500; cursor: pointer; transition: color .15s; } .ds-seg button:hover { color: #151515; } .ds-seg button[aria-pressed=\"true\"] { background: #151515; color: #fff; } .ds-seg button:focus-visible { outline: 2px solid #2e86ab; outline-offset: 2px; } .ds-n { font-variant-numeric: tabular-nums; color: #72716a; } .ds-seg button[aria-pressed=\"true\"] .ds-n { color: rgb(255 255 255 / .7); } .ds-attn { color: #a85a12; display: inline-flex; } .ds-rev { color: #1f6f99; display: inline-flex; }"
+    },
+    {
+      "name": "Top Bar",
+      "kind": "nav",
+      "refersTo": "top-bar",
+      "description": "Sticky white bar: four-chip logo, workspace, text nav with ink underline, account.",
+      "html": "<header class=\"ds-top\"><span class=\"ds-logo\"><i style=\"background:#c84c28\"></i><i style=\"background:#f2c14e\"></i><i style=\"background:#2b7da0\"></i><i style=\"background:#32835a\"></i></span><b>Prototyper</b><nav><a href=\"#\" aria-current=\"page\">Projects</a><a href=\"#\">Admin</a></nav><span class=\"ds-av\">AL</span></header>",
+      "css": ".ds-top { font-family: \"Helvetica Neue\", Helvetica, Arial, system-ui, sans-serif; display: flex; align-items: center; gap: 20px; height: 56px; padding: 0 24px; background: #fff; border-bottom: 1px solid #e6e5df; color: #151515; } .ds-top b { font-size: 16px; letter-spacing: -.01em; margin-left: -10px; } .ds-logo { display: inline-grid; grid-template-columns: 10px 10px; gap: 2px; } .ds-logo i { width: 10px; height: 10px; border-radius: 1.5px; } .ds-top nav { display: flex; gap: 20px; } .ds-top a { position: relative; display: flex; align-items: center; height: 56px; color: #5f5e58; font-size: 14px; font-weight: 500; text-decoration: none; transition: color .15s; } .ds-top a:hover { color: #151515; } .ds-top a[aria-current] { color: #151515; box-shadow: inset 0 -2px 0 #151515; } .ds-top a:focus-visible { outline: 2px solid #2e86ab; outline-offset: 2px; } .ds-av { margin-left: auto; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 3px; background: #151515; color: #fff; font-size: 11px; font-weight: 700; }"
+    },
+    {
+      "name": "Tag",
+      "kind": "chip",
+      "refersTo": "tag",
+      "description": "Printed attribute tags (Admin, 2FA, Invite pending); never review state.",
+      "html": "<span class=\"ds-tag\">Admin</span> <span class=\"ds-tag ds-tag-ink\">Owner</span> <span class=\"ds-tag ds-tag-done\">2FA</span>",
+      "css": ".ds-tag { font-family: \"Helvetica Neue\", Helvetica, Arial, system-ui, sans-serif; display: inline-flex; align-items: center; height: 22px; padding: 0 6px; border-radius: 2px; background: #f2f1ec; color: #3a3a36; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; } .ds-tag-ink { background: #151515; color: #fff; } .ds-tag-done { background: #e6f2ea; color: #2b7a4b; }"
+    },
+    {
+      "name": "Swatch Chip",
+      "kind": "card",
+      "refersTo": "swatch-chip",
+      "description": "The project card: a client spot-ink block with code and name over a white label strip printing state, activity and time.",
+      "html": "<a class=\"ds-chip\" href=\"#\"><div class=\"ds-chip-ink\"><div class=\"ds-chip-top\"><span>OV·003</span><span>v4</span></div><div><p>Officina Verdi</p><h3>Spring catalogue landing</h3></div></div><div class=\"ds-chip-strip\"><span class=\"ds-state\"><svg viewBox=\"0 0 12 12\" width=\"11\" height=\"11\" aria-hidden=\"true\"><circle cx=\"6\" cy=\"6\" r=\"5.25\" fill=\"currentColor\" stroke=\"currentColor\" stroke-width=\"1.5\"/></svg>Feedback to import</span><div class=\"ds-meta\"><span>3 edits, 2 notes</span><span>2h ago</span></div></div></a>",
+      "css": ".ds-chip { font-family: \"Helvetica Neue\", Helvetica, Arial, system-ui, sans-serif; display: flex; flex-direction: column; width: 240px; border-radius: 3px; background: #fff; color: #151515; text-decoration: none; box-shadow: 0 1px 2px rgb(21 21 21 / .06), 0 0 0 1px rgb(21 21 21 / .07); transition: box-shadow .2s ease-out, transform .2s ease-out; } .ds-chip:hover, .ds-chip:focus-visible { transform: translateY(-2px); box-shadow: 0 10px 24px -8px rgb(21 21 21 / .22), 0 0 0 1px rgb(21 21 21 / .08); outline: none; } .ds-chip:focus-visible { outline: 2px solid #2e86ab; outline-offset: 2px; } .ds-chip-ink { display: flex; flex-direction: column; justify-content: space-between; height: 148px; padding: 16px; border-radius: 3px 3px 0 0; background: #32835a; color: #fff; } .ds-chip-top { display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; letter-spacing: .08em; font-variant-numeric: tabular-nums; } .ds-chip-ink p { margin: 0; font-size: 12.5px; font-weight: 500; } .ds-chip-ink h3 { margin: 0; font-size: 19px; line-height: 1.15; font-weight: 700; letter-spacing: -.015em; } .ds-chip-strip { display: flex; flex-direction: column; gap: 6px; padding: 12px 16px 10px; } .ds-state { display: inline-flex; align-items: center; gap: 8px; color: #a85a12; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; } .ds-meta { display: flex; justify-content: space-between; font-size: 12.5px; color: #5f5e58; } .ds-meta span:last-child { font-variant-numeric: tabular-nums; }"
+    },
+    {
+      "name": "State Marks",
+      "kind": "custom",
+      "refersTo": "label",
+      "description": "Review states as printed marks with caps words; the struck state strikes its words.",
+      "html": "<div class=\"ds-marks\"><span class=\"ds-s\" style=\"color:#a85a12\"><svg viewBox=\"0 0 12 12\" width=\"11\" height=\"11\" aria-hidden=\"true\"><circle cx=\"6\" cy=\"6\" r=\"5.25\" fill=\"currentColor\" stroke=\"currentColor\" stroke-width=\"1.5\"/></svg>Feedback to import</span><span class=\"ds-s\" style=\"color:#1f6f99\"><svg viewBox=\"0 0 12 12\" width=\"11\" height=\"11\" aria-hidden=\"true\"><circle cx=\"6\" cy=\"6\" r=\"5.25\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"/><path d=\"M6 .75a5.25 5.25 0 0 1 0 10.5Z\" fill=\"currentColor\"/></svg>Client is reviewing</span><span class=\"ds-s\" style=\"color:#151515\"><svg viewBox=\"0 0 12 12\" width=\"11\" height=\"11\" aria-hidden=\"true\"><circle cx=\"6\" cy=\"6\" r=\"5.25\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"/></svg>Waiting for the client</span><span class=\"ds-s\" style=\"color:#2b7a4b\"><svg viewBox=\"0 0 12 12\" width=\"11\" height=\"11\" aria-hidden=\"true\"><circle cx=\"6\" cy=\"6\" r=\"5.25\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"/><path d=\"M3.6 6.2 5.3 7.8 8.5 4.4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>Feedback imported</span><span class=\"ds-s\" style=\"color:#72716a\"><svg viewBox=\"0 0 12 12\" width=\"11\" height=\"11\" aria-hidden=\"true\"><circle cx=\"6\" cy=\"6\" r=\"5.25\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-dasharray=\"2.2 2\"/></svg>Not published</span><span class=\"ds-s ds-off\" style=\"color:#72716a\"><svg viewBox=\"0 0 12 12\" width=\"11\" height=\"11\" aria-hidden=\"true\"><circle cx=\"6\" cy=\"6\" r=\"5.25\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"/><path d=\"M1.5 10.5 10.5 1.5\" stroke=\"currentColor\" stroke-width=\"1.5\"/></svg>Link disabled</span></div>",
+      "css": ".ds-marks { font-family: \"Helvetica Neue\", Helvetica, Arial, system-ui, sans-serif; display: flex; flex-direction: column; gap: 10px; } .ds-s { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; } .ds-off { text-decoration: line-through; text-decoration-thickness: 1.5px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Studio Swatch Book",
+    "overview": "The panel is a printer's swatch book for a small studio. Every client owns one solid spot colour, assigned by the server from a ten-ink palette and distinct within a workspace, and every project is a chip cut from that colour: a coloured block carrying the swatch code and project name, above a white label strip that prints the review state, version, activity and time. The ground is uncoated paper, the cards are white stock, the type is black ink. Colour means *who*; printed marks mean *where the review stands*. The two never trade jobs.\n\nDensity is calm and operational. Helvetica Neue in bold, tight headlines and one small tracked caps label size give it the feel of printed production paperwork rather than a SaaS dashboard. Depth is a paper stack: chips sit on the paper with a hairline shadow and lift a few pixels when touched. The system refuses the grey SaaS table with coloured status pills: status is a printed mark next to words, never a filled pill and never the chip's colour.\n\nThe same world reaches the client review overlay (`packages/overlay`): ink toolbar segments, white floating cards, the same hairlines, radii and focus colour, so the client and the studio see one material.",
+    "keyCharacteristics": [
+      "Paper ground, white stock, warm-grey hairlines, near-black ink.",
+      "One solid spot colour per client, never a gradient, never a status signal.",
+      "Review states as printed SVG marks (filled, half, ring, check ring, dashed ring, struck) paired with caps words.",
+      "One label size: 11px bold caps, tracked 0.08em, tabular figures.",
+      "Square-ish corners (2 to 6px) and ink-filled primary actions.",
+      "Light only."
+    ],
+    "rules": [
+      {
+        "name": "The Colour Is Who Rule",
+        "body": "A spot colour identifies a client and nothing else. Never tint a chip by review state, and never use a spot ink for a status, an action, or a chart series.",
+        "section": "colors"
+      },
+      {
+        "name": "The Solid Ink Rule",
+        "body": "Spot colours are printed flat: no gradients, no transparency, no tints on the chip itself.",
+        "section": "colors"
+      },
+      {
+        "name": "The Ink Button Rule",
+        "body": "The primary action is ink on white. State hues never fill a primary button; only `danger` may fill, and only to confirm destruction.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Label Size Rule",
+        "body": "Labels are 11px bold caps tracked 0.08em. Rank between labels comes from colour and position, never from a second label size.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tabular Rule",
+        "body": "Every number that can change (counts, versions, swatch codes, times) is set with tabular figures.",
+        "section": "typography"
+      },
+      {
+        "name": "The Paper Stack Rule",
+        "body": "At rest everything sits one sheet high. Only touch (hover, focus, selection) lifts a chip, and only floating layers use Pop.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** give every client exactly one spot ink from the ten in `swatch.ts`, and show it wherever that client appears (chip, rail, filters, version fan).",
+      "**Do** print review state as a mark plus caps words (11px, 0.08em, bold), in the state hue.",
+      "**Do** keep the primary action ink-filled with 4px corners, one per view.",
+      "**Do** set counts, versions, codes and times in tabular figures.",
+      "**Do** use the Chip shadow at rest and Lift only on hover, focus or selection.",
+      "**Do** keep white text on a spot ink at 4.5:1 or better; Yellow and Orange take ink text.",
+      "**Do** honour reduced motion: every transition and animation collapses to near zero."
+    ],
+    "donts": [
+      "**Don't** colour a chip, card or row by review state; the spot colour is the client's.",
+      "**Don't** use filled coloured status pills for review states; that is the grey SaaS table this world replaces.",
+      "**Don't** add gradients, tints or transparency to spot inks.",
+      "**Don't** introduce a second label size or a web font; the stack is Helvetica Neue, Helvetica, Arial.",
+      "**Don't** use hard offset shadows or heavy borders; depth is a soft ink-tinted paper stack.",
+      "**Don't** set small text in Pale Grey (faint) where it must be read; it is for marks and decorative hints, and falls below 4.5:1 on paper.",
+      "**Don't** round corners past 6px on rectangles."
+    ]
+  }
+}

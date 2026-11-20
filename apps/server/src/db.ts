@@ -57,6 +57,8 @@ export interface ClientRow {
   id: string;
   workspace_id: string;
   name: string;
+  /** Index of the client's spot colour in the panel's swatch palette. */
+  swatch: number;
   created_at: string;
 }
 
@@ -217,6 +219,7 @@ CREATE TABLE IF NOT EXISTS clients (
   id TEXT PRIMARY KEY,
   workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
   name TEXT NOT NULL COLLATE NOCASE,
+  swatch INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL,
   UNIQUE (workspace_id, name)
 );
@@ -342,6 +345,8 @@ CREATE INDEX IF NOT EXISTS idx_versions_project ON versions(project_id);
 `;
 
 type Param = string | number | null;
+/** Size of the panel's client colour palette. */
+export const SWATCHES = 10;
 const now = () => new Date().toISOString();
 
 /** Thin data-access layer over node:sqlite (synchronous, single process). */
@@ -351,6 +356,20 @@ export class Store {
   constructor(path: string) {
     this.db = new DatabaseSync(path);
     this.db.exec(SCHEMA);
+    this.migrate();
+  }
+
+  /** Additive migrations for databases created by earlier versions. */
+  private migrate(): void {
+    const cols = (table: string) => this.all<{ name: string }>(`PRAGMA table_info(${table})`).map((c) => c.name);
+    if (!cols("clients").includes("swatch")) {
+      this.db.exec("ALTER TABLE clients ADD COLUMN swatch INTEGER NOT NULL DEFAULT 0");
+      for (const w of this.all<{ id: string }>("SELECT id FROM workspaces")) {
+        this.all<{ id: string }>("SELECT id FROM clients WHERE workspace_id = ? ORDER BY created_at", w.id).forEach((c, i) =>
+          this.run("UPDATE clients SET swatch = ? WHERE id = ?", i % SWATCHES, c.id),
+        );
+      }
+    }
   }
 
   close(): void {
@@ -573,7 +592,11 @@ export class Store {
   ensureClient(id: string, workspaceId: string, name: string): ClientRow {
     const existing = this.one<ClientRow>("SELECT * FROM clients WHERE workspace_id = ? AND name = ?", workspaceId, name.trim());
     if (existing) return existing;
-    this.run("INSERT INTO clients (id, workspace_id, name, created_at) VALUES (?, ?, ?, ?)", id, workspaceId, name.trim(), now());
+    // The least used spot colour in the workspace, so clients side by side differ.
+    const used = new Map(this.all<{ swatch: number; n: number }>("SELECT swatch, COUNT(*) AS n FROM clients WHERE workspace_id = ? GROUP BY swatch", workspaceId).map((r) => [r.swatch, r.n]));
+    let swatch = 0;
+    for (let i = 0; i < SWATCHES; i++) if ((used.get(i) ?? 0) < (used.get(swatch) ?? 0)) swatch = i;
+    this.run("INSERT INTO clients (id, workspace_id, name, swatch, created_at) VALUES (?, ?, ?, ?, ?)", id, workspaceId, name.trim(), swatch, now());
     return this.client(id)!;
   }
 

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, type Me, type User } from "../api";
 import { Modal } from "../components/Modal";
-import { Badge, CopyButton, ErrorText, Loading } from "../components/ui";
+import { CopyButton, ErrorText, Loading, StateLabel, Tag, type MarkKind } from "../components/ui";
 import { errorMessage, formatDate, timeAgo } from "../format";
 import { useT } from "../i18n";
 import { navigate, useLocation } from "../router";
@@ -69,12 +69,14 @@ export function Admin({ me, onChange }: { me: Me; onChange: () => void }) {
 
   return (
     <div className="flex flex-col gap-5">
-      <h1 className="text-[22px] font-semibold">{t("Admin")}</h1>
-      <div className="flex gap-1 border-b border-line">
+      <h1 className="text-[26px] leading-tight font-bold tracking-[-0.02em]">{t("Admin")}</h1>
+      <div className="tabs" role="tablist">
         {(["users", "workspaces", "domains"] as const).map((k) => (
           <button
             key={k}
-            className={`-mb-px border-b-2 px-3 py-2 text-[14px] font-medium ${tab === k ? "border-accent text-ink" : "border-transparent text-muted hover:text-ink"}`}
+            type="button"
+            role="tab"
+            aria-selected={tab === k}
             onClick={() => navigate(`/admin?tab=${k}`, true)}
           >
             {t(k === "users" ? "People" : k === "workspaces" ? "Workspaces" : "Preview domains")}
@@ -132,16 +134,16 @@ function Users({ me, users, workspaces, reload }: { me: Me; users: AdminUser[]; 
           {t("Invite someone")}
         </button>
       </div>
-      <div className="card divide-y divide-line">
+      <div className="sheet divide-y divide-line">
         {users.map((u) => (
           <div key={u.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-medium">{u.name || u.email}</span>
-                {u.isAdmin && <Badge tone="accent">{t("Admin")}</Badge>}
-                {u.disabled && <Badge tone="danger">{t("Disabled")}</Badge>}
-                {u.invitePending && <Badge tone="warn">{t("Invite pending")}</Badge>}
-                {u.totpEnabled && <Badge tone="ok">2FA</Badge>}
+                {u.isAdmin && <Tag tone="ink">{t("Admin")}</Tag>}
+                {u.disabled && <StateLabel kind="off">{t("Disabled")}</StateLabel>}
+                {u.invitePending && <StateLabel kind="waiting">{t("Invite pending")}</StateLabel>}
+                {u.totpEnabled && <StateLabel kind="done">2FA</StateLabel>}
               </div>
               <p className="truncate text-[12.5px] text-muted">
                 {u.email} · {u.workspaceIds.length ? u.workspaceIds.map(wsName).join(", ") : t("no workspace")} ·{" "}
@@ -342,9 +344,9 @@ function Workspaces({ users, workspaces, reload }: { users: AdminUser[]; workspa
       <ErrorText>{error}</ErrorText>
       <div className="grid gap-3 md:grid-cols-2">
         {workspaces.map((w) => (
-          <div key={w.id} className="card p-4">
+          <div key={w.id} className="sheet p-4">
             <div className="flex items-center gap-2">
-              <span className="flex-1 text-[15px] font-semibold">{w.name}</span>
+              <span className="flex-1 text-[16px] font-bold tracking-[-0.01em]">{w.name}</span>
               <button className="btn btn-ghost" onClick={() => setRenaming(w)}>
                 {t("Rename")}
               </button>
@@ -402,16 +404,16 @@ function Domains({ domains, workspaces, reload }: { domains: AdminDomain[]; work
   const { busy, error, run } = useAction();
   const panelHost = location.hostname;
 
-  const STATUS: Record<AdminDomain["status"], { label: string; tone: "ok" | "warn" | "danger" | "muted" }> = {
-    active: { label: "Active", tone: "ok" },
-    pending: { label: "Getting the certificate…", tone: "warn" },
-    error: { label: "Error", tone: "danger" },
-    disabled: { label: "Disabled", tone: "muted" },
+  const STATUS: Record<AdminDomain["status"], { label: string; mark: MarkKind }> = {
+    active: { label: "Active", mark: "done" },
+    pending: { label: "Getting the certificate…", mark: "reviewing" },
+    error: { label: "Error", mark: "attention" },
+    disabled: { label: "Disabled", mark: "off" },
   };
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="card p-4 text-[13.5px]">
+      <div className="sheet p-4 text-[13.5px]">
         <p className="font-medium">{t("How to add a domain")}</p>
         <ol className="mt-1.5 list-decimal space-y-1 pl-5 text-muted">
           <li>{t("At your DNS provider, point the domain (an A record, or a CNAME) to this server, the same one that answers on {host}.", { host: panelHost })}</li>
@@ -439,7 +441,7 @@ function Domains({ domains, workspaces, reload }: { domains: AdminDomain[]; work
         </form>
       )}
       <ErrorText>{error}</ErrorText>
-      <div className="card divide-y divide-line">
+      <div className="sheet divide-y divide-line">
         {domains.length === 0 && <p className="px-4 py-6 text-center text-muted">{t("No domains yet.")}</p>}
         {domains.map((d) => {
           const st = STATUS[d.status];
@@ -448,11 +450,13 @@ function Domains({ domains, workspaces, reload }: { domains: AdminDomain[]; work
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-mono text-[13.5px]">{d.hostname}</span>
-                  <Badge tone={st.tone}>{t(st.label)}</Badge>
+                  <StateLabel kind={st.mark} className={d.status === "error" ? "!text-danger" : ""}>
+                    {t(st.label)}
+                  </StateLabel>
                 </div>
                 <p className="flex flex-wrap items-center gap-1 text-[12.5px] text-muted">
                   <select
-                    className="rounded border border-transparent bg-transparent py-0.5 pr-1 text-[12.5px] text-muted hover:border-line focus:border-accent"
+                    className="rounded border border-transparent bg-transparent py-0.5 pr-1 text-[12.5px] text-muted hover:border-line focus:border-ink"
                     aria-label={t("Workspace of {domain}", { domain: d.hostname })}
                     value={d.workspaceId}
                     disabled={busy}

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { api } from "../api";
-import { ErrorText } from "../components/ui";
+import { ErrorText, Logo } from "../components/ui";
 import { errorMessage } from "../format";
 import { useT } from "../i18n";
 import { navigate } from "../router";
@@ -10,13 +10,13 @@ export function AuthCard(props: { title: string; subtitle?: string; children: Re
     <div className="grid min-h-screen place-items-center px-4 py-10">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center gap-3 text-center">
-          <img src="/favicon.svg" alt="" className="h-12 w-12" />
+          <Logo size={36} />
           <div>
-            <h1 className="text-[20px] font-semibold">{props.title}</h1>
+            <h1 className="text-[26px] font-bold tracking-[-0.02em]">{props.title}</h1>
             {props.subtitle && <p className="mt-1 text-muted">{props.subtitle}</p>}
           </div>
         </div>
-        <div className="card p-6">{props.children}</div>
+        <div className="sheet p-7">{props.children}</div>
       </div>
     </div>
   );
@@ -77,7 +77,7 @@ export function Login(props: { onSignedIn: () => void; next: string }) {
             <label className="label" htmlFor="code">{t("Code")}</label>
             <input
               id="code"
-              className="input text-center font-mono text-[20px] tracking-[0.3em]"
+              className="input text-center font-mono text-[19px] tracking-[0.3em]"
               inputMode="numeric"
               autoComplete="one-time-code"
               pattern="[0-9 ]*"
@@ -90,7 +90,7 @@ export function Login(props: { onSignedIn: () => void; next: string }) {
           </div>
         )}
         <ErrorText>{error}</ErrorText>
-        <button className="btn btn-primary py-2" disabled={busy}>
+        <button className="btn btn-primary h-10" disabled={busy}>
           {mfa ? t("Verify") : t("Sign in")}
         </button>
         {mfa && (

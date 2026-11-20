@@ -6,5 +6,6 @@ dist/
 .env.*
 !.env.example
 coverage/
-.impeccable/
+.impeccable/hook.cache.json
 .prototyper/feedback/
+apps/panel/.impeccable/hook.cache.json

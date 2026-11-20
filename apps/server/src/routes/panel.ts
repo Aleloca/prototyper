@@ -270,7 +270,7 @@ export async function panelRoutes(app: FastifyInstance, ctx: Ctx): Promise<void>
       const w = ctx.workspaceFor(me(req), id);
       return {
         workspace: { id: w.id, name: w.name },
-        clients: store.clients(w.id).map((c) => ({ id: c.id, name: c.name })),
+        clients: store.clients(w.id).map((c) => ({ id: c.id, name: c.name, swatch: c.swatch })),
         projects: store.projects(w.id).map((p) => ctx.projectSummary(p)),
         domains: store.domains(w.id).map((d) => ({ id: d.id, hostname: d.hostname, status: d.status })),
         members: store.members(w.id).map((u) => ({ id: u.id, name: u.name, email: u.email })),

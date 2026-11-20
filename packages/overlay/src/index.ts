@@ -682,7 +682,7 @@ class Overlay {
     if (this.saveError) el.textContent = this.t.saveError;
     else if (this.pending > 0) el.textContent = this.t.saving;
     else if (this.edited.size > 0) {
-      el.textContent = `✓ ${this.t.saved}`;
+      el.replaceChildren(icon("check"), document.createTextNode(this.t.saved));
       el.classList.add("ok");
     } else el.textContent = "";
   }
@@ -706,7 +706,7 @@ class Overlay {
               h(
                 "div",
                 { class: "reply" },
-                h("div", { class: `label ${c.status === "resolved" ? "ok" : ""}` }, c.status === "resolved" ? `✓ ${t.resolved}` : t.answered),
+                h("div", { class: `label ${c.status === "resolved" ? "ok" : ""}` }, ...(c.status === "resolved" ? [icon("check"), t.resolved] : [t.answered])),
                 c.reply ? h("div", {}, c.reply) : null,
               ),
             );

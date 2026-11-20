@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { api, type Me } from "../api";
-import { Badge, ErrorText, Section } from "../components/ui";
+import { StateLabel, ErrorText, Section } from "../components/ui";
 import { errorMessage, formatDate, timeAgo } from "../format";
 import { useT } from "../i18n";
 import { Link } from "../router";
@@ -17,9 +17,9 @@ export function Account({ me, onChange }: { me: Me; onChange: () => void }) {
   }
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-5">
-      <h1 className="text-[22px] font-semibold">{t("Account")}</h1>
+      <h1 className="text-[26px] leading-tight font-bold tracking-[-0.02em]">{t("Account")}</h1>
       {pending && me.user.totpEnabled && (
-        <div className="flex items-center gap-3 rounded-lg border border-accent/30 bg-accent-soft px-4 py-3">
+        <div className="flex items-center gap-3 rounded-[4px] bg-reviewing-wash px-4 py-3 text-ink-2">
           <span className="flex-1">{t("Two-factor authentication is on. You can now connect Claude Code.")}</span>
           <Link to={pending} className="btn btn-primary">
             {t("Continue")}
@@ -98,7 +98,7 @@ function TwoFactor({ me, onChange }: { me: Me; onChange: () => void }) {
     <Section
       title={t("Two-factor authentication")}
       description={t("A 6-digit code from an authenticator app (1Password, Google Authenticator…) on top of your password. Required to connect Claude Code.")}
-      actions={me.user.totpEnabled ? <Badge tone="ok">{t("On")}</Badge> : <Badge tone="muted">{t("Off")}</Badge>}
+      actions={me.user.totpEnabled ? <StateLabel kind="done">{t("On")}</StateLabel> : <StateLabel kind="none">{t("Off")}</StateLabel>}
     >
       {step === "idle" &&
         (me.user.totpEnabled ? (
@@ -145,13 +145,13 @@ function TwoFactor({ me, onChange }: { me: Me; onChange: () => void }) {
             });
           }}
         >
-          <img src={setup.qr} alt={t("QR code for your authenticator app")} className="h-44 w-44 shrink-0 rounded-lg border border-line" />
+          <img src={setup.qr} alt={t("QR code for your authenticator app")} className="h-44 w-44 shrink-0 rounded-[4px] shadow-[var(--shadow-chip)]" />
           <div className="flex min-w-0 flex-col gap-3">
             <p className="text-[13.5px]">{t("Scan the code with your authenticator app, then enter the 6-digit code it shows.")}</p>
             <p className="text-[12.5px] text-muted">
               {t("Can't scan? Enter this key by hand:")} <code className="font-mono break-all text-ink">{setup.secret}</code>
             </p>
-            <input className="input max-w-40 text-center font-mono text-[18px] tracking-[0.25em]" inputMode="numeric" autoComplete="one-time-code" maxLength={7} required autoFocus aria-label={t("Code")} value={code} onChange={(e) => setCode(e.target.value)} />
+            <input className="input max-w-40 text-center font-mono text-[19px] tracking-[0.25em]" inputMode="numeric" autoComplete="one-time-code" maxLength={7} required autoFocus aria-label={t("Code")} value={code} onChange={(e) => setCode(e.target.value)} />
             <ErrorText>{error}</ErrorText>
             <div className="flex gap-2">
               <button className="btn btn-primary" disabled={busy}>{t("Turn on")}</button>
@@ -173,7 +173,7 @@ function TwoFactor({ me, onChange }: { me: Me; onChange: () => void }) {
             });
           }}
         >
-          <p className="text-[13.5px] text-warn">{t("Turning it off also disconnects Claude Code everywhere.")}</p>
+          <p className="text-[13.5px] text-attention">{t("Turning it off also disconnects Claude Code everywhere.")}</p>
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label className="label" htmlFor="d-pw">{t("Password")}</label>
@@ -212,7 +212,13 @@ function Tokens() {
 
   return (
     <Section title={t("Claude Code connections")} description={t("Every computer where you signed in with the Prototyper MCP. Remove one to disconnect it.")}>
-      {tokens?.length === 0 && <p className="text-muted">{t("No connections.")}</p>}
+      {tokens === undefined && !error && (
+        <div className="flex flex-col gap-2" aria-busy>
+          <div className="skeleton h-5 w-56" />
+          <div className="skeleton h-4 w-80" />
+        </div>
+      )}
+      {tokens?.length === 0 && <p className="text-muted">{t("No connections. Sign in from Claude Code with the Prototyper plugin to add one.")}</p>}
       <ul className="flex flex-col divide-y divide-line">
         {tokens?.map((tk) => (
           <li key={tk.id} className="flex items-center gap-3 py-2.5">
@@ -268,7 +274,7 @@ function Password() {
         </div>
         <button className="btn">{t("Change")}</button>
       </form>
-      {msg && <p className="mt-2 text-[13px] text-ok">{msg}</p>}
+      {msg && <p className="mt-2 text-[13px] text-done">{msg}</p>}
       <ErrorText>{error}</ErrorText>
     </Section>
   );

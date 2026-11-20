@@ -145,7 +145,9 @@ export class Ctx {
       id: p.id,
       name: p.name,
       workspaceId: p.workspace_id,
-      client: client ? { id: client.id, name: client.name } : null,
+      client: client ? { id: client.id, name: client.name, swatch: client.swatch } : null,
+      /** The project's number among its client's projects, by creation (the swatch code). */
+      number: s.one<{ n: number }>("SELECT COUNT(*) AS n FROM projects WHERE client_id = ? AND (created_at < ? OR (created_at = ? AND id <= ?))", p.client_id, p.created_at, p.created_at, p.id)?.n ?? 1,
       domain: domain ? { id: domain.id, hostname: domain.hostname, status: domain.status } : null,
       url: this.shareUrl(p),
       shareStatus: share?.status ?? null,

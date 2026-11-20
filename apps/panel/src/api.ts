@@ -61,7 +61,9 @@ export interface ProjectSummary {
   id: string;
   name: string;
   workspaceId: string;
-  client: { id: string; name: string } | null;
+  client: { id: string; name: string; swatch: number } | null;
+  /** Number among the client's projects (swatch code). */
+  number: number;
   domain: { id: string; hostname: string; status: string } | null;
   url: string | null;
   shareStatus: "open" | "readonly" | "revoked" | null;
@@ -102,7 +104,7 @@ export interface Feedback {
 
 export interface WorkspaceView {
   workspace: { id: string; name: string };
-  clients: { id: string; name: string }[];
+  clients: { id: string; name: string; swatch: number }[];
   projects: ProjectSummary[];
   domains: { id: string; hostname: string; status: string }[];
   members: { id: string; name: string; email: string }[];
