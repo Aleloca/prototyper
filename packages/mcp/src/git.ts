@@ -18,6 +18,10 @@ const MAX_SOURCE_BYTES = 100 * 1024 * 1024;
 /** Never part of the sources, whatever .gitignore says: dependencies, secrets, Prototyper's own files. */
 const EXCLUDES = [
   "node_modules/",
+  ".astro/",
+  ".cache/",
+  ".parcel-cache/",
+  ".turbo/",
   ".env",
   ".env.*",
   "!.env.example",

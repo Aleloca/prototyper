@@ -1,7 +1,7 @@
 import { mkdir, readdir, stat, writeFile } from "node:fs/promises";
 import { pipeline } from "node:stream/promises";
 import { Readable } from "node:stream";
-import { join, relative, resolve } from "node:path";
+import { join, relative, resolve, sep } from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import * as tar from "tar";
@@ -88,6 +88,15 @@ async function sourceRemote(api: Api, projectId: string): Promise<(Remote & { he
 const author = (api: Api) => ({ name: api.user.name, email: api.user.email });
 const short = (sha: string) => sha.slice(0, 7);
 
+/** Folder names build tools write to. A published folder with another name (e.g. `site/` of a hand-written site) is the source itself. */
+const BUILD_OUTPUTS = new Set(["dist", "build", "out", "_site", ".output", "output", "storybook-static", ".next", ".svelte-kit", ".vercel"]);
+
+function isBuildOutput(root: string, buildDir: string): boolean {
+  const rel = relative(root, buildDir);
+  if (!rel || rel.startsWith("..")) return false;
+  return rel.split(sep).some((part) => BUILD_OUTPUTS.has(part));
+}
+
 /**
  * Save the folder's sources as a commit on the server's `main`, on top of what is there. Refused when
  * the server has sources this folder hasn't pulled yet. Returns the commit, or a note when not saved.
@@ -106,7 +115,7 @@ async function pushSources(api: Api, projectId: string, root: string, buildDir: 
           : "This project already has sources on Prototyper that this folder never pulled. Run pull_sources to merge them (or clone_project into a new folder), then publish again.",
       );
     }
-    const commit = await repo.snapshot(message, author(api), head ?? base, buildDir === root ? undefined : buildDir);
+    const commit = await repo.snapshot(message, author(api), head ?? base, isBuildOutput(root, buildDir) ? buildDir : undefined);
     if (commit !== head) await repo.push(remote, commit);
     await repo.setBase(commit);
     return { commit };
