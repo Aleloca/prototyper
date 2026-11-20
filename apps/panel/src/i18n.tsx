@@ -175,6 +175,7 @@ const IT: Record<string, string> = {
   "nobody yet (manage people in the People tab)": "ancora nessuno (gestisci le persone nella scheda Persone)",
   "Rename workspace": "Rinomina workspace",
   Name: "Nome",
+  "Workspace of {domain}": "Workspace di {domain}",
   "How to add a domain": "Come aggiungere un dominio",
   "At your DNS provider, point the domain (an A record, or a CNAME) to this server, the same one that answers on {host}.":
     "Dal tuo provider DNS, fai puntare il dominio (record A o CNAME) a questo server, lo stesso che risponde su {host}.",

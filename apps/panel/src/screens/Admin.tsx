@@ -450,8 +450,20 @@ function Domains({ domains, workspaces, reload }: { domains: AdminDomain[]; work
                   <span className="font-mono text-[13.5px]">{d.hostname}</span>
                   <Badge tone={st.tone}>{t(st.label)}</Badge>
                 </div>
-                <p className="text-[12.5px] text-muted">
-                  {workspaces.find((w) => w.id === d.workspaceId)?.name}
+                <p className="flex flex-wrap items-center gap-1 text-[12.5px] text-muted">
+                  <select
+                    className="rounded border border-transparent bg-transparent py-0.5 pr-1 text-[12.5px] text-muted hover:border-line focus:border-accent"
+                    aria-label={t("Workspace of {domain}", { domain: d.hostname })}
+                    value={d.workspaceId}
+                    disabled={busy}
+                    onChange={(e) => void run(async () => (await api.patch(`/api/panel/admin/domains/${d.id}`, { workspaceId: e.target.value }), await reload()))}
+                  >
+                    {workspaces.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.name}
+                      </option>
+                    ))}
+                  </select>
                   {d.certExpiresAt && ` · ${t("certificate until {date}", { date: new Date(d.certExpiresAt).toLocaleDateString() })}`}
                 </p>
                 {d.status === "error" && d.lastError && <p className="mt-0.5 text-[12.5px] text-danger">{d.lastError}</p>}
