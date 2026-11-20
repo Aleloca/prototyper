@@ -68,6 +68,8 @@ export interface ProjectSummary {
   url: string | null;
   shareStatus: "open" | "readonly" | "revoked" | null;
   latestVersion: { number: number; publishedAt: string; changelog: string } | null;
+  /** Screenshot of the latest version's home page (panel URL), when ready. */
+  thumbnail: string | null;
   round: RoundSummary | null;
   createdBy: string | null;
   createdAt: string;

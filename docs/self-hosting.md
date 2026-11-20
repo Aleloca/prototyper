@@ -18,6 +18,7 @@ It builds the overlay, the panel and the server, uploads them to `/var/www/proto
 
 - creates `/var/www/prototyper/.env` with a random `SECRET_KEY` (it encrypts 2FA secrets and signs preview URLs: keep it, and back it up with the data);
 - installs the nginx site `/etc/nginx/sites-available/prototyper` as the **default server** (see below), tests the configuration and reloads nginx, rolling back if the test fails;
+- installs a headless Chromium (with its system libraries) used to screenshot each published version for the panel's project cards;
 - starts the server with pm2 on `127.0.0.1:3700`.
 
 On start the server gets a Let's Encrypt certificate for the panel host by itself. Then create the first admin:
@@ -60,6 +61,7 @@ Review links of a workspace are served only on that workspace's active domains; 
 | `CERTS_DIR` | Where certificates are written. Set: automatic certificates. Unset: domains are active as soon as they are added, and TLS is up to you. |
 | `ACME_EMAIL` | Contact for Let's Encrypt (expiry notices). |
 | `ACME_STAGING` | `true` to use Let's Encrypt staging (testing). |
+| `THUMBNAILS` | `false` to turn off the project thumbnails (screenshots taken with headless Chromium, which the deploy script installs). |
 | `PORT`, `HOST` | Listen address (default `127.0.0.1:3700`). |
 | `TRUST_PROXY` | `true` behind nginx. |
 

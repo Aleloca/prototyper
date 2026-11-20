@@ -250,6 +250,7 @@ const IT: Record<string, string> = {
   "1 note": "1 nota",
   "{n} notes": "{n} note",
   "No feedback yet": "Ancora nessun feedback",
+  "Preview being prepared": "Anteprima in preparazione",
   "Not reviewed: a newer version was published first.": "Non rivista: nel frattempo è stata pubblicata una versione più recente.",
   // Server messages
   "Wrong email or password.": "Email o password sbagliate.",

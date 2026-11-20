@@ -42,6 +42,10 @@ NODE_BIN="$(dirname "$(readlink -f "$(command -v node)")")"
 export PATH="$NODE_BIN:$PATH"
 cd "$APP_DIR"
 npm install --omit=dev --no-audit --no-fund --loglevel=error
+# Headless Chromium for the project thumbnails (and its system libraries); a no-op once installed.
+npx --no-install playwright-core install --with-deps --only-shell chromium >/dev/null 2>&1 \
+  && echo "  chromium for thumbnails: ready" \
+  || echo "  chromium for thumbnails: install failed, thumbnails stay off (see docs/self-hosting.md)" >&2
 
 if [ ! -f .env ]; then
   umask 077

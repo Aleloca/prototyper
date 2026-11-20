@@ -7,6 +7,7 @@ import { z } from "zod";
 import { Ctx, type ServerConfig } from "./context.js";
 import { Store } from "./db.js";
 import { DomainManager } from "./domains.js";
+import { Thumbnails } from "./thumbnails.js";
 import { apiRoutes } from "./routes/api.js";
 import { oauthRoutes } from "./routes/oauth.js";
 import { panelRoutes } from "./routes/panel.js";
@@ -53,6 +54,13 @@ export async function buildApp(config: ServerConfig): Promise<{ app: FastifyInst
     domains.routes(app);
     app.addHook("onReady", async () => domains.start());
     app.addHook("onClose", async () => domains.stop());
+  }
+
+  if (config.thumbnails) {
+    const thumbs = new Thumbnails(store, join(config.dataDir, "thumbs"), app.log);
+    ctx.thumbnails = thumbs;
+    app.addHook("onReady", async () => void thumbs.backfill());
+    app.addHook("onClose", async () => thumbs.close());
   }
 
   await panelRoutes(app, ctx);

@@ -328,6 +328,14 @@ export async function panelRoutes(app: FastifyInstance, ctx: Ctx): Promise<void>
       return ctx.feedback(ctx.roundFor(me(req), id), (u) => `/api/panel/uploads/${u}`);
     });
 
+    api.get("/api/panel/thumbs/:versionId", { preHandler: requireUser }, async (req, reply) => {
+      const { versionId } = z.object({ versionId: z.coerce.number().int() }).parse(req.params);
+      const v = store.version(versionId);
+      if (!v || !ctx.thumbnails || !(await ctx.thumbnails.exists(v.id))) return reply.code(404).send({ error: "not_found" });
+      ctx.projectFor(me(req), v.project_id);
+      return reply.header("Cache-Control", "private, max-age=31536000, immutable").type("image/webp").send(createReadStream(ctx.thumbnails.path(v.id)));
+    });
+
     api.get("/api/panel/uploads/:id", { preHandler: requireUser }, async (req, reply) => {
       const { id } = req.params as { id: string };
       const u = z.string().uuid().safeParse(id).success ? store.upload(id) : undefined;

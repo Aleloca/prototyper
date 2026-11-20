@@ -1,4 +1,5 @@
 import { randomBytes, randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
 import { mkdir, rename, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { Readable } from "node:stream";
@@ -7,6 +8,7 @@ import * as tar from "tar";
 import { lintDemo, readSite, type ContentEntry, type LintIssue } from "@prototyper/shared";
 import type { CommentRow, CommentStatus, ProjectRow, RoundRow, Store, UserRow, VersionRow } from "./db.js";
 import { SecretBox } from "./security.js";
+import type { Thumbnails } from "./thumbnails.js";
 
 export interface ServerConfig {
   dataDir: string;
@@ -22,6 +24,8 @@ export interface ServerConfig {
   logger?: boolean;
   /** Automatic certificates for preview domains (production). Absent: domains are activated by hand. */
   acme?: { certsDir: string; staging?: boolean; email?: string };
+  /** Screenshot each version for the panel's cards (needs Chromium on the server). */
+  thumbnails?: boolean;
   /** Development only: serve everything over plain http on this port (URLs become http://host:port). */
   devPort?: number;
 }
@@ -42,6 +46,8 @@ export const hostOf = (req: FastifyRequest) => req.hostname.toLowerCase().replac
 /** Shared state and operations used by the panel API, the MCP API and the review routes. */
 export class Ctx {
   readonly box: SecretBox;
+  /** Screenshots for the panel's cards (absent in tests and when disabled). */
+  thumbnails: Thumbnails | undefined;
   private readonly contentCache = new Map<number, Map<string, ContentEntry>>();
 
   constructor(
@@ -152,6 +158,7 @@ export class Ctx {
       url: this.shareUrl(p),
       shareStatus: share?.status ?? null,
       latestVersion: latest ? { number: latest.number, publishedAt: latest.published_at, changelog: latest.changelog } : null,
+      thumbnail: latest && this.thumbnails && existsSync(this.thumbnails.path(latest.id)) ? `/api/panel/thumbs/${latest.id}` : null,
       round: round ? this.roundSummary(round) : null,
       createdBy: s.user(p.created_by)?.name || s.user(p.created_by)?.email || null,
       createdAt: p.created_at,
@@ -262,6 +269,7 @@ export class Ctx {
       return v;
     });
     this.store.audit(user.id, "version.publish", { project: project.id, number });
+    this.thumbnails?.request(version.id);
     return {
       version: { id: version.id, number: version.number, publishedAt: version.published_at },
       url: this.shareUrl(this.store.project(project.id)!),

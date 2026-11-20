@@ -255,29 +255,31 @@ function ProjectChip({ project: p }: { project: ProjectSummary }) {
         : t("No version yet");
   return (
     <article className="group relative flex h-full flex-col rounded-[var(--radius-chip)] bg-stock shadow-[var(--shadow-chip)] transition-[box-shadow,transform] duration-200 ease-out focus-within:shadow-[var(--shadow-lift)] hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)]">
-      <div className="flex h-[148px] flex-col justify-between rounded-t-[var(--radius-chip)] p-4" style={{ background: spot.bg, color: spot.fg }}>
-        <div className="flex items-start justify-between gap-2">
-          <span className="caps num" style={{ color: spot.fg2 }}>
-            {swatchCode(p.client?.name, p.number)}
-          </span>
-          {p.latestVersion && (
-            <span className="caps num" style={{ color: spot.fg2 }}>
-              v{p.latestVersion.number}
-            </span>
+      {/* The swatch: the client's spot colour, with the site printed on it. */}
+      <div className="rounded-t-[var(--radius-chip)] px-2.5 pt-2.5 pb-2.5" style={{ background: spot.bg, color: spot.fg }}>
+        <div className="flex items-center justify-between gap-2 px-1.5 pb-2.5">
+          <span className="caps num">{swatchCode(p.client?.name, p.number)}</span>
+          {p.latestVersion && <span className="caps num">v{p.latestVersion.number}</span>}
+        </div>
+        <div className="aspect-[16/10] overflow-hidden rounded-[2px] bg-stock shadow-[0_1px_3px_rgb(21_21_21/.25)]">
+          {p.thumbnail ? (
+            <img src={p.thumbnail} alt="" loading="lazy" className="size-full object-cover object-top" />
+          ) : (
+            <div className="grid size-full place-items-center bg-wash px-4 text-center text-[12.5px] text-muted">
+              {p.latestVersion ? t("Preview being prepared") : t("Not published yet")}
+            </div>
           )}
         </div>
-        <div>
-          <p className="truncate text-[12.5px] font-medium" style={{ color: spot.fg2 }}>
-            {p.client?.name}
-          </p>
-          <h3 className="line-clamp-2 text-[19px] leading-[1.15] font-bold tracking-[-0.015em]">
+      </div>
+      <div className="flex flex-1 flex-col gap-1.5 px-4 pt-3 pb-2.5">
+        <div className="mb-0.5">
+          <p className="truncate text-[12.5px] text-muted">{p.client?.name}</p>
+          <h3 className="line-clamp-2 text-[16px] leading-[1.25] font-bold tracking-[-0.01em]">
             <Link to={`/p/${p.id}`} className="outline-none after:absolute after:inset-0 after:rounded-[var(--radius-chip)] focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-focus">
               {p.name}
             </Link>
           </h3>
         </div>
-      </div>
-      <div className="flex flex-1 flex-col gap-1.5 px-4 pt-3 pb-2.5">
         <StateLabel kind={state.mark}>{t(state.label)}</StateLabel>
         <div className="flex items-center justify-between gap-3 text-[12.5px] text-muted">
           <span className="truncate">{activity}</span>

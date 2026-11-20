@@ -1,4 +1,4 @@
-// Bundle the server into dist/server.js. Only `sharp` (native) stays external.
+// Bundle the server into dist/server.js. `sharp` (native) and `playwright-core` stay external.
 import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { build } from "esbuild";
@@ -13,7 +13,7 @@ await build({
   platform: "node",
   format: "esm",
   target: "node22",
-  external: ["sharp"],
+  external: ["sharp", "playwright-core"],
   banner: { js: "import { createRequire as __cr } from 'node:module'; const require = __cr(import.meta.url);" },
   legalComments: "none",
 });
@@ -36,7 +36,7 @@ writeFileSync(
       private: true,
       type: "module",
       scripts: { start: "node --disable-warning=ExperimentalWarning server.js" },
-      dependencies: { sharp: pkg.dependencies.sharp },
+      dependencies: { sharp: pkg.dependencies.sharp, "playwright-core": pkg.dependencies["playwright-core"] },
     },
     null,
     2,
