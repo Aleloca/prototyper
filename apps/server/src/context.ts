@@ -28,6 +28,8 @@ export interface ServerConfig {
   thumbnails?: boolean;
   /** Development only: serve everything over plain http on this port (URLs become http://host:port). */
   devPort?: number;
+  /** Standalone mode: the app itself serves HTTPS with these options (certificates picked by SNI). */
+  https?: import("node:https").ServerOptions;
 }
 
 export class HttpError extends Error {

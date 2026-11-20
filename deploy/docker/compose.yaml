@@ -1,0 +1,19 @@
+# Prototyper on a dedicated server: it answers on ports 80 and 443 and handles HTTPS by itself.
+#   cp .env.example .env   # set PANEL_HOST and ADMIN_EMAIL
+#   docker compose up -d && docker compose logs prototyper   # prints the first admin's invite link
+# If the server already runs other sites behind nginx, use compose.proxy.yaml instead.
+services:
+  prototyper:
+    image: ghcr.io/aleloca/prototyper:latest
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "80:8080"
+      - "443:8443"
+    volumes:
+      - data:/data
+      - certs:/certs
+
+volumes:
+  data:
+  certs:

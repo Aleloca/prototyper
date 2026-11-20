@@ -1,0 +1,21 @@
+# Prototyper next to other sites: nginx stays in front (deploy/nginx-prototyper.conf, as default server)
+# and reads the certificates that Prototyper writes to $CERTS_PATH on the host.
+#   cp .env.example .env   # set PANEL_HOST and ADMIN_EMAIL
+#   docker compose -f compose.proxy.yaml up -d
+services:
+  prototyper:
+    image: ghcr.io/aleloca/prototyper:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      STANDALONE: "false"
+      TRUST_PROXY: "true"
+    ports:
+      - "127.0.0.1:${PORT:-3700}:3700"
+    volumes:
+      - ${DATA_PATH:-data}:/data
+      # Owned by uid 1000 (the container user), group of the nginx workers: see docs/self-hosting.md.
+      - ${CERTS_PATH:-/var/lib/prototyper-certs}:/certs
+
+volumes:
+  data:

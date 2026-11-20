@@ -1,6 +1,6 @@
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import Fastify, { type FastifyInstance } from "fastify";
+import Fastify, { type FastifyInstance, type FastifyServerOptions } from "fastify";
 import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
 import { z } from "zod";
@@ -29,7 +29,8 @@ export async function buildApp(config: ServerConfig): Promise<{ app: FastifyInst
     logger: config.logger ?? false,
     trustProxy: config.trustProxy ?? false,
     bodyLimit: 1024 * 1024,
-  });
+    ...(config.https ? { https: config.https } : {}),
+  } as FastifyServerOptions) as unknown as FastifyInstance;
   app.addHook("onClose", async () => store.close());
 
   await app.register(rateLimit, { global: false });

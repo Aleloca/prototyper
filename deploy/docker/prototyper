@@ -1,0 +1,3 @@
+#!/bin/sh
+# Start the server, or run an admin command:  prototyper create-admin you@example.com
+exec node --disable-warning=ExperimentalWarning /app/server.js "$@"

@@ -44,12 +44,17 @@ Everything published lives in a web panel: workspaces, clients and projects, eve
 
 ### 1. The server
 
-Self-hosted, one Node process with SQLite, behind nginx (it coexists with the other sites on the machine). See **[docs/self-hosting.md](docs/self-hosting.md)**:
+Self-hosted: one Docker container (Node and SQLite, HTTPS certificates included). On a server with Docker and the panel's DNS pointing to it:
 
 ```sh
-SSH_HOST=myserver PANEL_HOST=prototyper.example.com ./deploy/deploy.sh
-ssh myserver '/var/www/prototyper/prototyper create-admin you@example.com'
+mkdir prototyper && cd prototyper
+curl -fsSLO https://raw.githubusercontent.com/Aleloca/prototyper/main/deploy/docker/compose.yaml
+curl -fsSL https://raw.githubusercontent.com/Aleloca/prototyper/main/deploy/docker/.env.example -o .env
+# edit .env: PANEL_HOST and ADMIN_EMAIL
+docker compose up -d && docker compose logs prototyper   # the first admin's invite link
 ```
+
+Already running other sites behind nginx, or prefer no Docker? See **[docs/self-hosting.md](docs/self-hosting.md)**.
 
 ### 2. The Claude Code plugin
 
@@ -85,7 +90,7 @@ Keys are stable across versions, so the client's edits always land in the right 
 | [`packages/shared`](packages/shared) | The `data-pt` contract: linter and edit application |
 | [`packages/mcp`](packages/mcp) | The MCP server, bundled into the plugin |
 | [`plugin`](plugin) | Claude Code plugin: MCP server, skill, commands |
-| [`deploy`](deploy) | Deploy script and nginx site |
+| [`deploy`](deploy) | Docker Compose files, deploy script without Docker, nginx site |
 | [`docs/DESIGN.md`](docs/DESIGN.md) | Architecture and design decisions |
 
 ## Development
