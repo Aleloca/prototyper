@@ -58,7 +58,7 @@ export async function panelRoutes(app: FastifyInstance, ctx: Ctx): Promise<void>
   };
 
   const setSessionCookie = (reply: FastifyReply, id: string, days: number) =>
-    reply.header("Set-Cookie", `${SESSION_COOKIE}=${id}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${Math.round(days * 86_400)}`);
+    reply.header("Set-Cookie", `${SESSION_COOKIE}=${id}; Path=/; HttpOnly;${ctx.config.devPort ? "" : " Secure;"} SameSite=Lax; Max-Age=${Math.round(days * 86_400)}`);
   const clearSessionCookie = (reply: FastifyReply) => reply.header("Set-Cookie", `${SESSION_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`);
 
   const newSession = (reply: FastifyReply, req: FastifyRequest, user: UserRow, stage: "mfa" | "full") => {
@@ -508,6 +508,7 @@ export async function panelRoutes(app: FastifyInstance, ctx: Ctx): Promise<void>
       const { id } = req.params as { id: string };
       const d = store.domain(id);
       if (!d) return reply.code(404).send({ error: "unknown_domain" });
+      if (store.one("SELECT 1 AS x FROM projects WHERE domain_id = ?", id)) return reply.code(409).send({ error: "Projects use this domain: move them first." });
       store.deleteDomain(id);
       store.audit(me(req).id, "domain.delete", { hostname: d.hostname }, req.ip);
       return { ok: true };

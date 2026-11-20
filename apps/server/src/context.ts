@@ -20,6 +20,8 @@ export interface ServerConfig {
   panelDir?: string;
   trustProxy?: boolean;
   logger?: boolean;
+  /** Development only: serve everything over plain http on this port (URLs become http://host:port). */
+  devPort?: number;
 }
 
 export class HttpError extends Error {
@@ -48,7 +50,12 @@ export class Ctx {
   }
 
   get panelOrigin(): string {
-    return `https://${this.config.panelHost}`;
+    return this.originOf(this.config.panelHost);
+  }
+
+  /** `https://host`, or `http://host:port` in development. */
+  originOf(host: string): string {
+    return this.config.devPort ? `http://${host}:${this.config.devPort}` : `https://${host}`;
   }
 
   // --- access --------------------------------------------------------------------------------
@@ -91,7 +98,7 @@ export class Ctx {
     const share = this.store.shareForProject(project.id);
     const domain = project.domain_id ? this.store.domain(project.domain_id) : undefined;
     if (!share || !domain) return null;
-    return `https://${domain.hostname}/s/${share.token}/`;
+    return `${this.originOf(domain.hostname)}/s/${share.token}/`;
   }
 
   /** Signed, expiring URL of one version on the project's preview domain (no overlay, read-only). */
@@ -100,7 +107,7 @@ export class Ctx {
     if (!domain) return null;
     const exp = Math.floor(Date.now() / 1000) + ttlSeconds;
     const payload = `${version.id}.${exp}`;
-    return `https://${domain.hostname}/v/${payload}.${this.box.sign(`version:${payload}`)}/`;
+    return `${this.originOf(domain.hostname)}/v/${payload}.${this.box.sign(`version:${payload}`)}/`;
   }
 
   checkVersionSignature(id: number, exp: number, sig: string): boolean {

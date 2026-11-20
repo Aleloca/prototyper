@@ -1,5 +1,5 @@
 // Bundle the server into dist/server.js. Only `sharp` (native) stays external.
-import { copyFileSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
+import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { build } from "esbuild";
 
@@ -19,6 +19,12 @@ await build({
 });
 
 copyFileSync(require.resolve("@prototyper/overlay/review.js"), "dist/review.js");
+
+// The panel SPA, built by @prototyper/panel.
+const panelDist = new URL("../panel/dist/", import.meta.url);
+if (!existsSync(new URL("index.html", panelDist))) throw new Error("Build the panel first: pnpm --filter @prototyper/panel build");
+rmSync("dist/panel", { recursive: true, force: true });
+cpSync(panelDist, "dist/panel", { recursive: true });
 
 const pkg = JSON.parse(readFileSync("package.json", "utf8"));
 writeFileSync(

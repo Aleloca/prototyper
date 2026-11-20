@@ -1,0 +1,238 @@
+import { createContext, useContext, type ReactNode } from "react";
+
+export type Lang = "en" | "it";
+export type T = (text: string, vars?: Record<string, string | number>) => string;
+
+/** English text is the key; Italian translations below. Server error messages are translated too. */
+const IT: Record<string, string> = {
+  // Shell
+  "Page not found.": "Pagina non trovata.",
+  Workspace: "Workspace",
+  Admin: "Admin",
+  "Sign out": "Esci",
+  "You are not in any workspace yet. Ask an admin to add you.": "Non fai ancora parte di nessuna workspace. Chiedi a un admin di aggiungerti.",
+  Copied: "Copiato",
+  Copy: "Copia",
+  "just now": "adesso",
+  "{n} min ago": "{n} min fa",
+  "{n} h ago": "{n} h fa",
+  "{n} d ago": "{n} g fa",
+  // Round states
+  "Link disabled": "Link disattivato",
+  "Not published": "Non pubblicato",
+  "Feedback to import": "Feedback da importare",
+  "Feedback imported": "Feedback importato",
+  "Client is reviewing": "Il cliente sta rivedendo",
+  "Waiting for the client": "In attesa del cliente",
+  // Sign in & invites
+  "Sign in to Prototyper": "Accedi a Prototyper",
+  "Enter the 6-digit code from your authenticator app.": "Inserisci il codice a 6 cifre della tua app di autenticazione.",
+  Email: "Email",
+  Password: "Password",
+  Code: "Codice",
+  Verify: "Verifica",
+  "Sign in": "Accedi",
+  "Use a different account": "Usa un altro account",
+  "Invite not valid": "Invito non valido",
+  "This invite is not valid any more. Ask for a new one.": "Questo invito non è più valido. Chiedine uno nuovo.",
+  "The passwords don't match.": "Le password non coincidono.",
+  "Set a new password": "Imposta una nuova password",
+  "Welcome to Prototyper": "Benvenuto in Prototyper",
+  "Your name": "Il tuo nome",
+  "At least 10 characters.": "Almeno 10 caratteri.",
+  "Repeat the password": "Ripeti la password",
+  "Save and sign in": "Salva e accedi",
+  // Projects
+  "{n} projects": "{n} progetti",
+  "{n} with feedback to import": "{n} con feedback da importare",
+  "Search projects and clients": "Cerca progetti e clienti",
+  "This workspace has no active preview domain yet, so nothing can be published.": "Questa workspace non ha ancora un dominio di anteprima attivo, quindi non si può pubblicare niente.",
+  "Add a domain": "Aggiungi un dominio",
+  "Ask an admin to add one.": "Chiedi a un admin di aggiungerne uno.",
+  "No projects yet": "Ancora nessun progetto",
+  "Projects are created from Claude Code. In your project, ask Claude to publish the prototype on Prototyper: the link and its versions will show up here.":
+    "I progetti si creano da Claude Code. Nel tuo progetto chiedi a Claude di pubblicare il prototipo su Prototyper: il link e le sue versioni compariranno qui.",
+  "{e} edits · {c} notes": "{e} modifiche · {c} note",
+  "Updated {ago}": "Aggiornato {ago}",
+  // Project
+  Projects: "Progetti",
+  "Version {n}, published {ago}": "Versione {n}, pubblicata {ago}",
+  "Not published yet": "Non ancora pubblicato",
+  "Not published yet.": "Non ancora pubblicato.",
+  "created by {name}": "creato da {name}",
+  Versions: "Versioni",
+  "Client feedback": "Feedback del cliente",
+  "Copy link": "Copia link",
+  Open: "Apri",
+  "The client can view, edit and comment.": "Il cliente può vedere, modificare e commentare.",
+  "Read-only: the client can view but not change anything.": "Sola lettura: il cliente può vedere ma non cambiare niente.",
+  "Disabled: the link shows “not available”.": "Disattivato: il link mostra “non disponibile”.",
+  "Re-enable editing": "Riattiva le modifiche",
+  "Make read-only": "Metti in sola lettura",
+  "Disable link": "Disattiva link",
+  "New link": "Nuovo link",
+  Delete: "Elimina",
+  "No link yet: publish a version from Claude Code.": "Ancora nessun link: pubblica una versione da Claude Code.",
+  "Create a new link?": "Creare un nuovo link?",
+  "Create new link": "Crea nuovo link",
+  Cancel: "Annulla",
+  "The current link stops working immediately. Edits and notes are kept. Send the new link to the client.":
+    "Il link attuale smette subito di funzionare. Modifiche e note restano. Manda il nuovo link al cliente.",
+  "Delete “{name}”?": "Eliminare «{name}»?",
+  "Delete forever": "Elimina definitivamente",
+  "All versions, the client's edits, images and notes are deleted, and the link stops working. This can't be undone.":
+    "Vengono eliminate tutte le versioni, le modifiche, le immagini e le note del cliente, e il link smette di funzionare. Non si può annullare.",
+  "Type the project name to confirm": "Scrivi il nome del progetto per confermare",
+  "No versions yet.": "Ancora nessuna versione.",
+  "Published {date}": "Pubblicata il {date}",
+  Desktop: "Desktop",
+  Tablet: "Tablet",
+  Mobile: "Mobile",
+  "No preview domain.": "Nessun dominio di anteprima.",
+  "What changed": "Cosa è cambiato",
+  "No review rounds yet.": "Ancora nessun giro di revisione.",
+  "Review of v{n}": "Revisione della v{n}",
+  "Open since {date}. The client hasn't pressed “I'm done” yet.": "Aperta dal {date}. Il cliente non ha ancora premuto “Ho finito”.",
+  "{who} sent the feedback on {date}. Ask Claude to check the feedback to apply it.": "{who} ha inviato il feedback il {date}. Chiedi a Claude di controllare il feedback per applicarlo.",
+  "The client": "Il cliente",
+  "Imported on {date}.": "Importata il {date}.",
+  "No edits or notes in this round.": "Nessuna modifica o nota in questo giro.",
+  "Notes ({n})": "Note ({n})",
+  "No notes.": "Nessuna nota.",
+  "Edits ({n})": "Modifiche ({n})",
+  "No edits.": "Nessuna modifica.",
+  "New image": "Nuova immagine",
+  Resolved: "Risolta",
+  Answered: "Risposta",
+  // Account
+  Account: "Account",
+  Profile: "Profilo",
+  Saved: "Salvato",
+  Save: "Salva",
+  "Two-factor authentication": "Autenticazione a due fattori",
+  "A 6-digit code from an authenticator app (1Password, Google Authenticator…) on top of your password. Required to connect Claude Code.":
+    "Un codice a 6 cifre da un'app di autenticazione (1Password, Google Authenticator…) oltre alla password. Serve per collegare Claude Code.",
+  On: "Attiva",
+  Off: "Non attiva",
+  "Turn off": "Disattiva",
+  "Turn on": "Attiva",
+  "Confirm your password": "Conferma la password",
+  Continue: "Continua",
+  "QR code for your authenticator app": "Codice QR per la tua app di autenticazione",
+  "Scan the code with your authenticator app, then enter the 6-digit code it shows.": "Inquadra il codice con la tua app di autenticazione, poi inserisci il codice a 6 cifre che ti mostra.",
+  "Can't scan? Enter this key by hand:": "Non riesci a inquadrarlo? Inserisci a mano questa chiave:",
+  "Turning it off also disconnects Claude Code everywhere.": "Disattivandola scolleghi anche Claude Code ovunque.",
+  "Claude Code connections": "Collegamenti di Claude Code",
+  "Every computer where you signed in with the Prototyper MCP. Remove one to disconnect it.": "Ogni computer su cui hai fatto l'accesso con l'MCP di Prototyper. Rimuovine uno per scollegarlo.",
+  "No connections.": "Nessun collegamento.",
+  "Connected {date}": "Collegato il {date}",
+  "last used {ago}": "usato {ago}",
+  "never used": "mai usato",
+  "expires {date}": "scade il {date}",
+  Disconnect: "Scollega",
+  "Changing it signs you out everywhere else.": "Cambiandola esci da tutti gli altri dispositivi.",
+  "Password changed.": "Password cambiata.",
+  "Current password": "Password attuale",
+  "New password": "Nuova password",
+  Change: "Cambia",
+  // Admin
+  People: "Persone",
+  "Preview domains": "Domini di anteprima",
+  "People sign in with email and password. They see every project in the workspaces they belong to.": "Le persone accedono con email e password. Vedono tutti i progetti delle workspace di cui fanno parte.",
+  "Invite someone": "Invita qualcuno",
+  Disabled: "Disattivato",
+  "Invite pending": "Invito in attesa",
+  "no workspace": "nessuna workspace",
+  "last sign-in {ago}": "ultimo accesso {ago}",
+  "never signed in": "mai entrato",
+  Manage: "Gestisci",
+  "Create invite link": "Crea link di invito",
+  "Name (optional)": "Nome (facoltativo)",
+  Workspaces: "Workspace",
+  "Admin: manages people, workspaces and domains, and sees everything": "Admin: gestisce persone, workspace e domini, e vede tutto",
+  "No workspaces yet.": "Ancora nessuna workspace.",
+  "Invite link for {email}": "Link di invito per {email}",
+  Done: "Fatto",
+  "Send this link to the person: they choose their name and password. It works once, for 7 days.": "Manda questo link alla persona: sceglierà nome e password. Funziona una volta sola, per 7 giorni.",
+  Close: "Chiudi",
+  "added {date}": "aggiunto il {date}",
+  "Admins see every workspace anyway.": "Gli admin vedono comunque tutte le workspace.",
+  Access: "Accesso",
+  "New invite link": "Nuovo link di invito",
+  "Password reset link": "Link per reimpostare la password",
+  "Reset 2FA": "Azzera 2FA",
+  "Remove admin": "Togli admin",
+  "Make admin": "Rendi admin",
+  Enable: "Riattiva",
+  Disable: "Disattiva",
+  "Disabling signs the person out and disconnects their Claude Code.": "Disattivando la persona esce dal pannello e il suo Claude Code viene scollegato.",
+  "A workspace groups clients, projects and preview domains. Its members see everything inside it.": "Una workspace raggruppa clienti, progetti e domini di anteprima. I suoi membri vedono tutto quello che contiene.",
+  "New workspace name": "Nome della nuova workspace",
+  Create: "Crea",
+  Rename: "Rinomina",
+  "no domain": "nessun dominio",
+  Members: "Membri",
+  "nobody yet (manage people in the People tab)": "ancora nessuno (gestisci le persone nella scheda Persone)",
+  "Rename workspace": "Rinomina workspace",
+  Name: "Nome",
+  "How to add a domain": "Come aggiungere un dominio",
+  "At your DNS provider, point the domain (an A record, or a CNAME) to this server, the same one that answers on {host}.":
+    "Dal tuo provider DNS, fai puntare il dominio (record A o CNAME) a questo server, lo stesso che risponde su {host}.",
+  "Add it here and pick its workspace. Prototyper checks the DNS and gets the HTTPS certificate by itself, in under a minute.":
+    "Aggiungilo qui e scegli la sua workspace. Prototyper controlla il DNS e ottiene da solo il certificato HTTPS, in meno di un minuto.",
+  "Create a workspace first.": "Prima crea una workspace.",
+  "Add domain": "Aggiungi dominio",
+  "No domains yet.": "Ancora nessun dominio.",
+  "certificate until {date}": "certificato fino al {date}",
+  "Try again": "Riprova",
+  Remove: "Rimuovi",
+  Active: "Attivo",
+  "Getting the certificate…": "Richiesta del certificato…",
+  Error: "Errore",
+  // Server messages
+  "Wrong email or password.": "Email o password sbagliate.",
+  "Too many attempts. Try again in a few minutes.": "Troppi tentativi. Riprova tra qualche minuto.",
+  "Wrong code.": "Codice sbagliato.",
+  "Sign in again.": "Accedi di nuovo.",
+  "The password must be at least 10 characters.": "La password deve avere almeno 10 caratteri.",
+  "The current password is wrong.": "La password attuale è sbagliata.",
+  "Two-factor authentication is already on.": "L'autenticazione a due fattori è già attiva.",
+  "Two-factor authentication is off.": "L'autenticazione a due fattori non è attiva.",
+  "Wrong password.": "Password sbagliata.",
+  "Start the setup first.": "Prima avvia la configurazione.",
+  "Wrong code. Check the time on your phone and try again.": "Codice sbagliato. Controlla l'ora del telefono e riprova.",
+  "A user with this email already exists.": "Esiste già un utente con questa email.",
+  "You can't remove your own admin rights or disable yourself.": "Non puoi toglierti i permessi di admin né disattivarti da solo.",
+  "Delete or move its projects first.": "Prima elimina o sposta i suoi progetti.",
+  "This domain is already configured.": "Questo dominio è già configurato.",
+  "The panel host can't be a preview domain.": "Il dominio del pannello non può essere un dominio di anteprima.",
+  "Not a valid hostname.": "Non è un dominio valido.",
+  "Projects use this domain: move them first.": "Alcuni progetti usano questo dominio: prima spostali.",
+  unknown_project: "Progetto non trovato.",
+  unknown_workspace: "Workspace non trovata.",
+};
+
+const DICTS: Record<Lang, Record<string, string>> = { en: {}, it: IT };
+
+export function detectLang(): Lang {
+  return navigator.language.toLowerCase().startsWith("it") ? "it" : "en";
+}
+
+export function makeT(lang: Lang): T {
+  const dict = DICTS[lang];
+  return (text, vars) => {
+    let out = dict[text] ?? text;
+    if (vars) for (const [k, v] of Object.entries(vars)) out = out.replaceAll(`{${k}}`, String(v));
+    return out;
+  };
+}
+
+const I18nContext = createContext<{ lang: Lang; t: T }>({ lang: "en", t: makeT("en") });
+
+export function I18nProvider(props: { lang: Lang; children: ReactNode }) {
+  return <I18nContext.Provider value={{ lang: props.lang, t: makeT(props.lang) }}>{props.children}</I18nContext.Provider>;
+}
+
+export function useT(): T {
+  return useContext(I18nContext).t;
+}

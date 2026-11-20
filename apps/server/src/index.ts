@@ -21,13 +21,14 @@ function loadOverlay(): string {
   return readFileSync(createRequire(import.meta.url).resolve("@prototyper/overlay/review.js"), "utf8");
 }
 
-const { app, store } = await buildApp({
+const { app, store, ctx } = await buildApp({
   dataDir: env("DATA_DIR", "./data"),
   secretKey: env("SECRET_KEY"),
   panelHost: env("PANEL_HOST"),
   overlayJs: loadOverlay(),
   panelDir: process.env.PANEL_DIR ?? join(here, "panel"),
   trustProxy: env("TRUST_PROXY", "false") === "true",
+  ...(process.env.DEV_HTTP === "true" ? { devPort: Number(env("PORT", "3700")) } : {}),
   logger: process.argv[2] === undefined,
 });
 
@@ -43,7 +44,7 @@ if (process.argv[2] === "create-admin") {
   const token = randomToken();
   store.createInvite(sha256(token), user.id, new Date(Date.now() + 7 * 86_400_000).toISOString());
   store.audit(null, "admin.create_cli", { user: user.id, email });
-  console.log(`Open this link to set the password of ${email} (valid 7 days):\nhttps://${env("PANEL_HOST")}/invite/${token}`);
+  console.log(`Open this link to set the password of ${email} (valid 7 days):\n${ctx.panelOrigin}/invite/${token}`);
   await app.close();
   process.exit(0);
 }

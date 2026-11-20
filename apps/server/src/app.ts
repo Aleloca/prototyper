@@ -4,10 +4,11 @@ import Fastify, { type FastifyInstance } from "fastify";
 import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
 import { z } from "zod";
-import { Ctx, SAFE_HEADERS, hostOf, notFoundPage, type ServerConfig } from "./context.js";
+import { Ctx, type ServerConfig } from "./context.js";
 import { Store } from "./db.js";
 import { apiRoutes } from "./routes/api.js";
 import { panelRoutes } from "./routes/panel.js";
+import { panelStatic } from "./routes/static.js";
 import { reviewRoutes } from "./routes/review.js";
 
 export type { ServerConfig } from "./context.js";
@@ -48,10 +49,7 @@ export async function buildApp(config: ServerConfig): Promise<{ app: FastifyInst
   await apiRoutes(app, ctx);
   await reviewRoutes(app, ctx);
 
-  app.get("/", async (req, reply) => {
-    if (hostOf(req) !== ctx.config.panelHost) return notFoundPage(reply);
-    return reply.headers(SAFE_HEADERS).type("text/plain").send("Prototyper");
-  });
+  await panelStatic(app, ctx);
 
   return { app, store, ctx };
 }
