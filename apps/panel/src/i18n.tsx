@@ -238,6 +238,7 @@ const IT: Record<string, string> = {
   "Version {n}": "Versione {n}",
   "First version.": "Prima versione.",
   "Open this version": "Apri questa versione",
+  "Download the code": "Scarica il codice",
   Exit: "Esci",
   Preview: "Anteprima",
   "Review rounds": "Giri di revisione",

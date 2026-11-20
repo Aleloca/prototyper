@@ -47,6 +47,9 @@ npx --no-install playwright-core install --with-deps --only-shell chromium >/dev
   && echo "  chromium for thumbnails: ready" \
   || echo "  chromium for thumbnails: install failed, thumbnails stay off (see docs/self-hosting.md)" >&2
 
+# git keeps each project's sources (clone_project / pull_sources in the plugin).
+command -v git >/dev/null 2>&1 || { apt-get install -y -qq git >/dev/null 2>&1 && echo "  git: installed"; } || echo "  git: install failed, project sources are not kept" >&2
+
 if [ ! -f .env ]; then
   umask 077
   printf 'SECRET_KEY=%s\nPANEL_HOST=%s\nDATA_DIR=%s\nCERTS_DIR=%s\nPORT=%s\nHOST=127.0.0.1\nTRUST_PROXY=true\n' \

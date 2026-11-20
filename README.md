@@ -37,6 +37,7 @@ Everything published lives in a web panel: workspaces, clients and projects, eve
 
 - **Workspaces** group clients, projects and preview domains. Members see everything in their workspaces; an admin manages people, workspaces and domains.
 - **People** join through an invite link. Two-factor authentication (TOTP) is optional for the panel and **required to connect Claude Code**.
+- **The code travels with the project.** Each publish also saves the sources on Prototyper, so a teammate can ask Claude to download any project and keep working on it (`/prototyper:clone`). It uses only their Prototyper login: no git account needed.
 - **Preview domains** are added from the panel: point the DNS to the server, add the domain, and Prototyper gets the HTTPS certificate by itself.
 - The panel is in English and Italian.
 

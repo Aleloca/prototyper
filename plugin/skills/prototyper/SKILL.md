@@ -1,13 +1,15 @@
 ---
 name: prototyper
-description: Publish a website prototype for client review on Prototyper and apply the client's feedback. Use when the user asks to create or update a preview/review link for a client ("creami la preview su Prototyper", "publish this on Prototyper", "share it with the client"), to check whether the client left feedback, edits or notes, or to apply that feedback and publish the next version. Also covers the data-pt attributes that make texts and images editable by the client.
+description: Publish a website prototype for client review on Prototyper and apply the client's feedback. Use when the user asks to create or update a preview/review link for a client ("creami la preview su Prototyper", "publish this on Prototyper", "share it with the client"), to check whether the client left feedback, edits or notes, or to apply that feedback and publish the next version, or to get the code of a project that is already on Prototyper ("scaricami il progetto Rossi da Prototyper", "work on the X prototype") and teammates' changes. Also covers the data-pt attributes that make texts and images editable by the client.
 ---
 
 # Prototyper
 
 Prototyper hosts a static build of the site on a review link. The client opens it with no account and can **edit texts, replace images and pin notes** on the page, then presses *I'm done*. You read that feedback with the MCP tools, apply it to the sources, and publish the next version on the **same link**, with a changelog and a reply to every note.
 
-Tools (MCP server `prototyper`): `login`, `whoami`, `list_projects`, `link_project`, `lint`, `publish`, `check_feedback`, `reply`.
+Tools (MCP server `prototyper`): `login`, `whoami`, `list_projects`, `clone_project`, `pull_sources`, `link_project`, `lint`, `publish`, `check_feedback`, `reply`.
+
+`publish` also saves the project's **sources** on Prototyper (a private git per project; the user needs no git account, their Prototyper login is enough). Secrets (`.env`, keys), dependencies, `.gitignore`'d files and the build output are never included.
 
 ## Signing in
 
@@ -20,6 +22,14 @@ If a tool says you are not signed in, call `login` with the panel address the us
 3. Run `lint` on the build folder and fix errors in the sources.
 4. Call `publish` with the build folder. The **first** time it needs `name` (the project), `client` and, if the user is in several workspaces, `workspace` — infer them from the conversation and the repo; ask only if you really can't. It writes `.prototyper.json` in the project root (commit it, so teammates publish to the same project). Later calls publish new versions on the same link.
 5. Give the user the link. Don't send it to anyone yourself.
+
+## Working on a project that is already on Prototyper
+
+1. `list_projects` to find it, then `clone_project` with its name or id. It downloads the sources into a new folder (by default named after the project, inside the current one) linked to the project. For projects published before sources were kept it downloads the built site instead and says so.
+2. Pass that folder as `project_dir` to every other tool. Install dependencies and build with the project's own commands.
+3. If the client left a review, `clone_project` says so: continue with *Applying feedback*.
+
+**Teammates.** When someone else published since this folder last synced, `publish` stops and asks for `pull_sources`. Run it: it merges their sources with the local changes. Conflicting files get `<<<<<<<` / `=======` / `>>>>>>>` markers: resolve them keeping both sides' intent, rebuild, check, then publish. Never publish a build made from files that still contain markers.
 
 ## Applying feedback ("check for changes and apply them")
 
@@ -60,4 +70,5 @@ In components (React, Vue, Astro…) it's just an attribute: `<h1 data-pt="home.
 
 - Never publish or share without the user asking for it: the link is seen by their client.
 - `.prototyper/feedback/` holds downloaded client images; it can be git-ignored.
-- `list_projects` shows all projects and their review status; `link_project` links a fresh checkout to an existing project.
+- `list_projects` shows all projects and their review status; `link_project` links a folder that already has the code (e.g. a git checkout) to an existing project; `clone_project` downloads it when you don't.
+- `.prototyper/` (feedback images, and the private git of the sources in `.prototyper/git`) ignores itself in the user's own git.

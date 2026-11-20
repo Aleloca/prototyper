@@ -6,6 +6,7 @@ export {
   Check,
   ChevronDown,
   Copy,
+  Download,
   ExternalLink,
   Laptop,
   Link2,

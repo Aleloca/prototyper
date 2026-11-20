@@ -85,10 +85,18 @@ Tools:
 - `check_feedback()`: the latest submitted round: edits by key and page with old/new values, uploaded images (downloaded into `./.prototyper/rounds/<n>/`), notes with page, anchor (selector, nearby text, position) and author.
 - `reply(round, changelog, replies)`: marks the round imported, stores the replies to notes; the next `publish` shows *What's new* and the replies to the client.
 - `lint(dir)`: checks the `data-pt` contract on the built HTML (from `packages/shared`).
+- `clone_project(project, dir?)`: downloads a project's sources (or, for projects published before sources were kept, the built site of the latest version) into a new folder linked to the project.
+- `pull_sources()`: merges teammates' newer sources into the folder (three-way, conflicts left as markers for Claude to resolve).
 
 The skill teaches Claude the `data-pt` contract (which elements get keys, key naming, stable keys across versions) and the loop: build → `lint` → `publish` → later `check_feedback` → apply edits in the **sources** (by key; works with plain HTML, Astro, React…) → address notes → build → `publish` → `reply`.
 
 Authorization is per user: every MCP call is checked against the user's workspaces.
+
+### Project sources (internal git)
+
+Each project has a bare git repository on the server (`DATA_DIR/git/<projectId>.git`), served over git's smart HTTP protocol (`git http-backend`) at `https://<panel>/git/<projectId>.git`. It is authenticated with the MCP token: no git account, the Prototyper login is the access. Only `main` can be pushed (pre-receive hook, no force pushes, no deletions); the server tags `v<n>` on the commit each version was built from (`versions.commit_sha`), and the panel offers each version's code as a zip.
+
+On the developer's machine the MCP keeps the sources in a **private** repository inside the project (`.prototyper/git`, work tree = the project folder), so the user's own `.git` (branches, index, history) is never touched. `publish` stages the folder as git sees it (`.gitignore` applies) minus dependencies, secrets (`.env*`, keys), Prototyper's files and the build output, commits on top of the server's `main` and pushes. `refs/prototyper/base` records the server commit the folder last synced with: when the server moved past it (a teammate published), `publish` stops and asks for `pull_sources`, which merges with `git merge-tree` and writes the result into the folder.
 
 ## 7. Preview domains and HTTPS
 
@@ -119,7 +127,7 @@ Side effect: hostnames pointed at the server but configured nowhere now get Prot
 | `packages/shared` | `data-pt` contract and linter |
 | `packages/mcp` | The MCP server (bundled to a single file for the plugin) |
 | `plugin/` | Claude Code plugin: MCP config, skill, commands |
-| `deploy/` | Deploy script, nginx site template, first-admin command |
+| `deploy/` | Docker Compose files (standalone, or behind nginx), deploy script without Docker, nginx site template |
 
 Removed: `apps/desktop`, `packages/prototype-kit` (its contract rules move into the skill), the macOS release pipeline.
 

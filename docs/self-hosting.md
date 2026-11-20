@@ -1,6 +1,6 @@
 # Self-hosting Prototyper
 
-Prototyper is a single Node process (Fastify and SQLite through `node:sqlite`). It serves the panel, the API for the MCP and the client review links, and it gets the HTTPS certificates of the panel and of the preview domains from Let's Encrypt. The recommended way to run it is the Docker image `ghcr.io/aleloca/prototyper`. It includes everything: Node, sharp, and a headless Chromium for the project thumbnails.
+Prototyper is a single Node process (Fastify and SQLite through `node:sqlite`). It serves the panel, the API for the MCP, the client review links and each project's sources (a git repository per project, which the MCP uses with the user's Prototyper login), and it gets the HTTPS certificates of the panel and of the preview domains from Let's Encrypt. The recommended way to run it is the Docker image `ghcr.io/aleloca/prototyper`. It includes everything: Node, git, sharp, and a headless Chromium for the project thumbnails.
 
 Two setups:
 
@@ -126,6 +126,7 @@ Back up the data folder or volume. It holds:
 
 - the SQLite database;
 - `projects/` and `uploads/`;
+- `git/`: each project's sources, as pushed by `publish`;
 - `secret.key`, if you didn't set `SECRET_KEY` (if you did, back up your `.env`).
 
 Certificates can be issued again.
@@ -149,7 +150,7 @@ It builds the overlay, the panel and the server, and uploads them to `/var/www/p
 
 - creates `.env` with a random `SECRET_KEY`;
 - installs the nginx default server above, rolling back if the configuration test fails;
-- installs headless Chromium for the thumbnails;
+- installs headless Chromium for the thumbnails, and git if missing;
 - starts the server with pm2 on `127.0.0.1:3700`.
 
 Later deploys run the same command, and `.env` and the data are kept.

@@ -1,10 +1,21 @@
 import { createReadStream } from "node:fs";
+import * as tar from "tar";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import rateLimit from "@fastify/rate-limit";
 import { z } from "zod";
 import { SAFE_HEADERS, hostOf, type Ctx } from "../context.js";
 import { sha256 } from "../security.js";
 import { userDto } from "./panel.js";
+import type { Store, UserRow } from "../db.js";
+
+/** The user behind an MCP token. Tokens are only valid while the user is active and keeps 2FA on. */
+export function apiUser(store: Store, token: string): UserRow | undefined {
+  const row = token ? store.apiTokenByHash(sha256(token)) : undefined;
+  const user = row && store.user(row.user_id);
+  if (!row || !user || user.disabled || !user.totp_enabled) return undefined;
+  store.touchApiToken(row.id);
+  return user;
+}
 
 /** API for the MCP (`/api/v1/*`) on the panel host: bearer tokens issued after a 2FA login. */
 export async function apiRoutes(app: FastifyInstance, ctx: Ctx): Promise<void> {
@@ -17,14 +28,8 @@ export async function apiRoutes(app: FastifyInstance, ctx: Ctx): Promise<void> {
       if (hostOf(req) !== ctx.config.panelHost) return reply.code(404).send({ error: "not_found" });
       reply.headers({ ...SAFE_HEADERS, "Cache-Control": "no-store" });
       const header = req.headers.authorization ?? "";
-      const token = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
-      const row = token ? store.apiTokenByHash(sha256(token)) : undefined;
-      const user = row && store.user(row.user_id);
-      // Tokens are only valid while the user is active and keeps 2FA on.
-      if (!row || !user || user.disabled || !user.totp_enabled) {
-        return reply.code(401).send({ error: "unauthorized", hint: "Run the prototyper login tool again." });
-      }
-      store.touchApiToken(row.id);
+      const user = apiUser(store, header.startsWith("Bearer ") ? header.slice(7).trim() : "");
+      if (!user) return reply.code(401).send({ error: "unauthorized", hint: "Run the prototyper login tool again." });
       req.user = user;
     });
 
@@ -78,10 +83,28 @@ export async function apiRoutes(app: FastifyInstance, ctx: Ctx): Promise<void> {
     /** Body: tar.gz of the built site (index.html at the root). */
     api.post("/api/v1/projects/:id/versions", async (req, reply) => {
       const { id } = req.params as { id: string };
-      const { changelog } = z.object({ changelog: z.string().max(20_000).default("") }).parse(req.query);
+      const { changelog, commit } = z
+        .object({ changelog: z.string().max(20_000).default(""), commit: z.string().regex(/^[0-9a-f]{40}$/).optional() })
+        .parse(req.query);
       const p = ctx.projectFor(me(req), id);
       if (!Buffer.isBuffer(req.body) || req.body.length === 0) return reply.code(400).send({ error: "expected a tar.gz body" });
-      return ctx.publishVersion(me(req), p, req.body, changelog);
+      return ctx.publishVersion(me(req), p, req.body, changelog, commit);
+    });
+
+    /** Where the project's sources live (internal git) and the commit `main` is at. */
+    api.get("/api/v1/projects/:id/source", async (req) => {
+      const { id } = req.params as { id: string };
+      const p = ctx.projectFor(me(req), id);
+      const git = ctx.git && (await ctx.git.available()) ? ctx.git : undefined;
+      return { git: git ? `${ctx.panelOrigin}/git/${p.id}.git` : null, head: (await git?.head(p.id)) ?? null };
+    });
+
+    /** The built files of the latest version (tar.gz), for projects published before their sources were kept. */
+    api.get("/api/v1/projects/:id/versions/latest/files", async (req, reply) => {
+      const { id } = req.params as { id: string };
+      const v = store.latestVersion(ctx.projectFor(me(req), id).id);
+      if (!v) return reply.code(404).send({ error: "Not published yet." });
+      return reply.type("application/gzip").send(tar.c({ gzip: true, cwd: v.dir, portable: true }, ["."]));
     });
 
     /** The current round (the one the client works in) plus a pointer to the last submitted one. */

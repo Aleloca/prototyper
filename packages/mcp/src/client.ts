@@ -20,6 +20,11 @@ export class Api {
     return { email: this.creds.email, name: this.creds.name };
   }
 
+  /** For git over HTTP (sent as a header through the environment, never written to disk). */
+  get token(): string {
+    return this.creds.token;
+  }
+
   /** The API for a server (or the default one). Env PROTOTYPER_SERVER / PROTOTYPER_TOKEN override the file. */
   static async connect(server?: string): Promise<Api> {
     if (process.env.PROTOTYPER_TOKEN && process.env.PROTOTYPER_SERVER) {
@@ -64,6 +69,10 @@ export class Api {
 }
 
 // Shapes returned by the server.
+export interface SourceInfo {
+  git: string | null;
+  head: string | null;
+}
 export interface Workspace {
   id: string;
   name: string;

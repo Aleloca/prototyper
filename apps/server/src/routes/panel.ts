@@ -336,6 +336,18 @@ export async function panelRoutes(app: FastifyInstance, ctx: Ctx): Promise<void>
       return reply.header("Cache-Control", "private, max-age=31536000, immutable").type("image/webp").send(createReadStream(ctx.thumbnails.path(v.id)));
     });
 
+    api.get("/api/panel/versions/:versionId/source.zip", { preHandler: requireUser }, async (req, reply) => {
+      const { versionId } = z.object({ versionId: z.coerce.number().int() }).parse(req.params);
+      const v = store.version(versionId);
+      if (!v?.commit_sha || !ctx.git) return reply.code(404).send({ error: "not_found" });
+      const p = ctx.projectFor(me(req), v.project_id);
+      const name = `${p.name.normalize("NFKD").replace(/[^\w-]+/g, "-").replace(/^-+|-+$/g, "").toLowerCase() || "project"}-v${v.number}`;
+      return reply
+        .header("Content-Disposition", `attachment; filename="${name}.zip"`)
+        .type("application/zip")
+        .send(ctx.git.archive(p.id, v.commit_sha, name));
+    });
+
     api.get("/api/panel/uploads/:id", { preHandler: requireUser }, async (req, reply) => {
       const { id } = req.params as { id: string };
       const u = z.string().uuid().safeParse(id).success ? store.upload(id) : undefined;

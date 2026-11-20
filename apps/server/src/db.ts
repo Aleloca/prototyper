@@ -1,4 +1,5 @@
 import { DatabaseSync } from "node:sqlite";
+import { dirname, isAbsolute, join, relative, sep } from "node:path";
 
 export type ShareStatus = "open" | "readonly" | "revoked";
 export type RoundStatus = "open" | "submitted" | "imported";
@@ -81,6 +82,8 @@ export interface VersionRow {
   dir: string;
   published_by: string;
   published_at: string;
+  /** Commit of the project's sources this version was built from (internal git), if pushed. */
+  commit_sha: string | null;
 }
 
 export interface ShareRow {
@@ -243,6 +246,7 @@ CREATE TABLE IF NOT EXISTS versions (
   dir TEXT NOT NULL,
   published_by TEXT NOT NULL,
   published_at TEXT NOT NULL,
+  commit_sha TEXT,
   UNIQUE (project_id, number)
 );
 
@@ -352,9 +356,12 @@ const now = () => new Date().toISOString();
 /** Thin data-access layer over node:sqlite (synchronous, single process). */
 export class Store {
   readonly db: DatabaseSync;
+  /** Folder of the database: version folders and uploads are stored relative to it, so the data folder can move. */
+  private readonly dataDir: string;
 
   constructor(path: string) {
     this.db = new DatabaseSync(path);
+    this.dataDir = dirname(path);
     this.db.exec(SCHEMA);
     this.migrate();
   }
@@ -370,6 +377,29 @@ export class Store {
         );
       }
     }
+    if (!cols("versions").includes("commit_sha")) this.db.exec("ALTER TABLE versions ADD COLUMN commit_sha TEXT");
+    // Paths used to be absolute (they broke when the data folder moved, e.g. into a container).
+    const rel = (p: string, marker: string) => {
+      const i = p.lastIndexOf(`/${marker}/`);
+      return i >= 0 ? p.slice(i + 1) : p;
+    };
+    for (const v of this.all<{ id: number; dir: string }>("SELECT id, dir FROM versions WHERE dir LIKE '/%'")) this.run("UPDATE versions SET dir = ? WHERE id = ?", rel(v.dir, "projects"), v.id);
+    for (const u of this.all<{ id: string; file: string }>("SELECT id, file FROM uploads WHERE file LIKE '/%'")) this.run("UPDATE uploads SET file = ? WHERE id = ?", rel(u.file, "uploads"), u.id);
+  }
+
+  /** Stored path (relative to the data folder) ⇄ absolute path. */
+  private toStored(abs: string): string {
+    const r = relative(this.dataDir, abs);
+    if (r.startsWith("..") || isAbsolute(r)) throw new Error(`${abs} is outside the data folder`);
+    return r.split(sep).join("/");
+  }
+
+  private versionRow(v: VersionRow | undefined): VersionRow | undefined {
+    return v && { ...v, dir: join(this.dataDir, v.dir) };
+  }
+
+  private uploadRow(u: UploadRow | undefined): UploadRow | undefined {
+    return u && { ...u, file: join(this.dataDir, u.file) };
   }
 
   close(): void {
@@ -651,30 +681,31 @@ export class Store {
     this.run("DELETE FROM projects WHERE id = ?", id);
   }
 
-  addVersion(projectId: string, number: number, changelog: string, dir: string, publishedBy: string): VersionRow {
+  addVersion(projectId: string, number: number, changelog: string, dir: string, publishedBy: string, commit: string | null = null): VersionRow {
     this.run(
-      "INSERT INTO versions (project_id, number, changelog, dir, published_by, published_at) VALUES (?, ?, ?, ?, ?, ?)",
+      "INSERT INTO versions (project_id, number, changelog, dir, published_by, published_at, commit_sha) VALUES (?, ?, ?, ?, ?, ?, ?)",
       projectId,
       number,
       changelog,
-      dir,
+      this.toStored(dir),
       publishedBy,
       now(),
+      commit,
     );
     this.touchProject(projectId);
-    return this.one("SELECT * FROM versions WHERE project_id = ? AND number = ?", projectId, number)!;
+    return this.versionRow(this.one("SELECT * FROM versions WHERE project_id = ? AND number = ?", projectId, number))!;
   }
 
   version(id: number): VersionRow | undefined {
-    return this.one("SELECT * FROM versions WHERE id = ?", id);
+    return this.versionRow(this.one("SELECT * FROM versions WHERE id = ?", id));
   }
 
   versions(projectId: string): VersionRow[] {
-    return this.all("SELECT * FROM versions WHERE project_id = ? ORDER BY number", projectId);
+    return this.all<VersionRow>("SELECT * FROM versions WHERE project_id = ? ORDER BY number", projectId).map((v) => this.versionRow(v)!);
   }
 
   latestVersion(projectId: string): VersionRow | undefined {
-    return this.one("SELECT * FROM versions WHERE project_id = ? ORDER BY number DESC LIMIT 1", projectId);
+    return this.versionRow(this.one("SELECT * FROM versions WHERE project_id = ? ORDER BY number DESC LIMIT 1", projectId));
   }
 
   // --- shares -----------------------------------------------------------------------------
@@ -776,7 +807,7 @@ export class Store {
       u.id,
       u.round_id,
       u.key,
-      u.file,
+      this.toStored(u.file),
       u.mime,
       u.width,
       u.height,
@@ -786,15 +817,15 @@ export class Store {
   }
 
   upload(id: string): UploadRow | undefined {
-    return this.one("SELECT * FROM uploads WHERE id = ?", id);
+    return this.uploadRow(this.one("SELECT * FROM uploads WHERE id = ?", id));
   }
 
   uploads(roundId: number): UploadRow[] {
-    return this.all("SELECT * FROM uploads WHERE round_id = ? ORDER BY created_at", roundId);
+    return this.all<UploadRow>("SELECT * FROM uploads WHERE round_id = ? ORDER BY created_at", roundId).map((u) => this.uploadRow(u)!);
   }
 
   uploadsOfProject(projectId: string): UploadRow[] {
-    return this.all("SELECT u.* FROM uploads u JOIN rounds r ON r.id = u.round_id WHERE r.project_id = ?", projectId);
+    return this.all<UploadRow>("SELECT u.* FROM uploads u JOIN rounds r ON r.id = u.round_id WHERE r.project_id = ?", projectId).map((u) => this.uploadRow(u)!);
   }
 
   // --- comments ---------------------------------------------------------------------------

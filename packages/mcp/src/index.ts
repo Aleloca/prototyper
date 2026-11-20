@@ -1,11 +1,14 @@
 import { mkdir, readdir, stat, writeFile } from "node:fs/promises";
+import { pipeline } from "node:stream/promises";
+import { Readable } from "node:stream";
 import { join, relative, resolve } from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import * as tar from "tar";
 import { z } from "zod";
 import { formatIssues, lintDemo, readSite } from "@prototyper/shared";
-import { Api, type ContentValue, type Feedback, type Me, type ProjectSummary } from "./client.js";
+import { Api, type ContentValue, type Feedback, type Me, type ProjectSummary, type SourceInfo } from "./client.js";
+import { BehindError, GitMissingError, SourceRepo, type Remote } from "./git.js";
 import { PROJECT_FILE, normalizeServer, projectRoot, readCredentials, readProjectLink, writeProjectLink } from "./config.js";
 import { beginLogin, pendingLogin } from "./login.js";
 
@@ -74,6 +77,48 @@ async function linkedProject(projectDir?: string) {
   if (!link) throw new Error(`This folder (${root}) is not linked to a Prototyper project yet: publish it first, or use link_project.`);
   const api = await Api.connect(link.server);
   return { root, link, api };
+}
+
+/** The project's git on the server, if the server keeps sources. */
+async function sourceRemote(api: Api, projectId: string): Promise<(Remote & { head: string | null }) | undefined> {
+  const s = await api.request<SourceInfo>("GET", `/api/v1/projects/${projectId}/source`).catch(() => undefined);
+  return s?.git ? { url: s.git, token: api.token, head: s.head } : undefined;
+}
+
+const author = (api: Api) => ({ name: api.user.name, email: api.user.email });
+const short = (sha: string) => sha.slice(0, 7);
+
+/**
+ * Save the folder's sources as a commit on the server's `main`, on top of what is there. Refused when
+ * the server has sources this folder hasn't pulled yet. Returns the commit, or a note when not saved.
+ */
+async function pushSources(api: Api, projectId: string, root: string, buildDir: string, message: string): Promise<{ commit?: string; note?: string }> {
+  const remote = await sourceRemote(api, projectId);
+  if (!remote) return { note: "This server doesn't keep sources (no git there): only the built site was published." };
+  try {
+    const repo = await SourceRepo.open(root);
+    const head = await repo.remoteHead(remote);
+    const base = await repo.base();
+    if (head && head !== base) {
+      throw new BehindError(
+        base
+          ? "The sources on Prototyper changed since this folder last synced (someone else published). Run pull_sources to merge them, check the result, rebuild, then publish again."
+          : "This project already has sources on Prototyper that this folder never pulled. Run pull_sources to merge them (or clone_project into a new folder), then publish again.",
+      );
+    }
+    const commit = await repo.snapshot(message, author(api), head ?? base, buildDir === root ? undefined : buildDir);
+    if (commit !== head) await repo.push(remote, commit);
+    await repo.setBase(commit);
+    return { commit };
+  } catch (e) {
+    if (e instanceof BehindError) throw e;
+    if (e instanceof GitMissingError) return { note: e.message };
+    return { note: `The sources were not saved on Prototyper: ${(e as Error).message}` };
+  }
+}
+
+function slug(name: string): string {
+  return name.normalize("NFKD").replace(/[^\w-]+/g, "-").replace(/^-+|-+$/g, "").toLowerCase() || "project";
 }
 
 const server = new McpServer({ name: "prototyper", version: VERSION });
@@ -171,6 +216,94 @@ server.registerTool(
 );
 
 server.registerTool(
+  "clone_project",
+  {
+    title: "Get a Prototyper project's code",
+    description:
+      "Download an existing Prototyper project into a new folder, to work on it from this computer: its sources as last published (or, for projects published before sources were kept, the built site), linked to the project so publish makes the next version on the same client link. Pass the new folder as project_dir to the other tools afterwards.",
+    inputSchema: {
+      project: z.string().describe("project name or id (see list_projects)"),
+      dir: z.string().optional().describe("destination folder, new or empty; defaults to the project name, next to the current folder's contents"),
+    },
+  },
+  ({ project, dir }) =>
+    guard(async () => {
+      const api = await Api.connect();
+      const all = await api.request<ProjectSummary[]>("GET", "/api/v1/projects");
+      const wanted = project.trim().toLowerCase();
+      const matches = all.filter((p) => p.id === project.trim() || p.name.toLowerCase() === wanted);
+      const found = matches.length ? matches : all.filter((p) => p.name.toLowerCase().includes(wanted));
+      if (!found.length) return fail(`No project “${project}”. Use list_projects to see them.`);
+      if (found.length > 1) return fail(`Several projects match “${project}”: ${found.map((p) => `${p.name} (${p.client?.name ?? "?"}, id ${p.id})`).join("; ")}. Pass the id.`);
+      const p = found[0]!;
+      if (!p.latestVersion) return fail(`“${p.name}” has not been published yet: there is nothing to download.`);
+
+      const dest = resolve(projectRoot(), dir ?? slug(p.name));
+      const existing = await readdir(dest).catch(() => undefined);
+      if (existing?.length) return fail(`${dest} already exists and is not empty. Pass another dir.`);
+      await mkdir(dest, { recursive: true });
+
+      const remote = await sourceRemote(api, p.id);
+      let what: string;
+      let head: string | undefined;
+      if (remote) {
+        const repo = await SourceRepo.open(dest).catch((e: Error) => {
+          if (e instanceof GitMissingError) return undefined;
+          throw e;
+        });
+        head = repo ? await repo.remoteHead(remote) : undefined;
+        if (repo && head) {
+          await repo.fetch(remote, head);
+          await repo.checkout(head);
+          await repo.setBase(head);
+        }
+      }
+      if (head) {
+        what = `the sources as of v${p.latestVersion.number} (commit ${short(head)})`;
+      } else {
+        const tgz = await api.download(`/api/v1/projects/${p.id}/versions/latest/files`);
+        await pipeline(Readable.from(tgz), tar.x({ cwd: dest, strict: true }));
+        what = `the built files of v${p.latestVersion.number}: its sources were never saved on Prototyper, so this is the compiled site (fine for plain HTML/CSS/JS; with a framework, rebuild the sources from it)`;
+      }
+      await writeProjectLink(dest, { server: api.server, projectId: p.id, name: p.name });
+
+      const lines = [`Downloaded “${p.name}” (${p.client?.name ?? "?"}) into ${dest}: ${what}.`, `It is linked to the project (${PROJECT_FILE}): publish makes v${p.latestVersion.number + 1} on the same client link ${p.url ?? ""}.`];
+      if (p.round && p.round.status === "submitted") lines.push(`The client sent a review of v${p.round.versionNumber} (${p.round.edits} edits, ${p.round.comments} notes) that hasn't been applied yet: run check_feedback.`);
+      lines.push(`Pass project_dir: "${dest}" to publish, lint, check_feedback and the other tools.`);
+      return text(lines.join("\n"));
+    }),
+);
+
+server.registerTool(
+  "pull_sources",
+  {
+    title: "Get teammates' changes",
+    description:
+      "Merge into this folder the sources a teammate published on Prototyper since this folder last synced (three-way merge; local changes are kept). Conflicts are left as <<<<<<< ======= >>>>>>> markers in the listed files: resolve them, rebuild, then publish.",
+    inputSchema: { project_dir: z.string().optional() },
+  },
+  ({ project_dir }) =>
+    guard(async () => {
+      const { root, link, api } = await linkedProject(project_dir);
+      const remote = await sourceRemote(api, link.projectId);
+      if (!remote) return fail("This Prototyper server doesn't keep sources (no git there).");
+      const repo = await SourceRepo.open(root);
+      const head = await repo.remoteHead(remote);
+      if (!head) return text("There are no sources on Prototyper yet for this project: publish saves them.");
+      const base = await repo.base();
+      if (base === head) return text("Already up to date with the sources on Prototyper.");
+      await repo.fetch(remote, head);
+      const conflicts = [...new Set(await repo.merge(head, author(api)))];
+      const lines = [`Merged the sources from Prototyper (commit ${short(head)}) into ${root}.`];
+      if (!base) lines.push("This folder had never been synced, so every file that differs from Prototyper's is a conflict.");
+      if (conflicts.length) {
+        lines.push("", `Conflicts in ${conflicts.length} file(s): resolve the <<<<<<< ======= >>>>>>> markers (keep both sides' intent), then rebuild and publish:`, ...conflicts.map((f) => `- ${f}`));
+      } else lines.push("No conflicts. Rebuild and check the site before publishing.");
+      return text(lines.join("\n"));
+    }),
+);
+
+server.registerTool(
   "lint",
   {
     title: "Check the data-pt contract",
@@ -195,7 +328,7 @@ server.registerTool(
   {
     title: "Publish to Prototyper",
     description:
-      "Upload the built site as a new version and return the client review link. The first time it creates the project (name, client and, if you have several, workspace are needed) and links this folder to it in .prototyper.json; later calls publish new versions on the same link. Always build first and pass the build output folder.",
+      "Upload the built site as a new version and return the client review link. It also saves the project's sources (this folder, minus .gitignore'd files, dependencies, secrets and the build output) on Prototyper, so teammates can clone_project it. The first time it creates the project (name, client and, if you have several, workspace are needed) and links this folder to it in .prototyper.json; later calls publish new versions on the same link. Always build first and pass the build output folder. If teammates published newer sources meanwhile, it stops and asks to run pull_sources first.",
     inputSchema: {
       dir: z.string().describe("folder of the built site (with index.html at its root), relative to the project, e.g. dist"),
       changelog: z.string().default("").describe("what changed, for the client, in the site's language (shown as “What's new”); empty for the first version"),
@@ -215,6 +348,7 @@ server.registerTool(
       const tarball = await packSite(dir);
 
       let created = false;
+      const linked = link;
       if (!link) {
         if (!args.name || !args.client) return fail("First publish of this folder: pass `name` (the project) and `client`.");
         const me = await api.request<Me>("GET", "/api/v1/me");
@@ -224,9 +358,16 @@ server.registerTool(
         await writeProjectLink(root, link);
         created = true;
       }
+      let sources: { commit?: string; note?: string };
+      try {
+        sources = await pushSources(api, link.projectId, root, dir, args.changelog.trim() || (created ? "First version" : "New version"));
+      } catch (e) {
+        if (e instanceof BehindError && linked) return fail(e.message);
+        throw e;
+      }
       const r = await api.request<{ version: { number: number }; url: string | null; warnings: number; errors: string[] }>(
         "POST",
-        `/api/v1/projects/${link.projectId}/versions?changelog=${encodeURIComponent(args.changelog)}`,
+        `/api/v1/projects/${link.projectId}/versions?changelog=${encodeURIComponent(args.changelog)}${sources.commit ? `&commit=${sources.commit}` : ""}`,
         tarball,
         "application/gzip",
       );
@@ -235,6 +376,7 @@ server.registerTool(
         `Client link: ${r.url ?? "(no preview domain)"}`,
       ];
       if (r.version.number > 1) lines.push("Same link as before: the client sees “What's new” and the replies to their notes.");
+      lines.push(sources.commit ? `Sources saved on Prototyper (commit ${short(sources.commit)}): teammates can get them with clone_project.` : (sources.note ?? ""));
       if (r.errors.length) lines.push("", `Contract errors (the client can't edit these spots): ${r.errors.length}`, ...r.errors.slice(0, 15).map((e) => `- ${e}`), "Run lint on the build for details.");
       else if (r.warnings) lines.push(`${r.warnings} contract warnings (run lint to see them).`);
       return text(lines.join("\n"));

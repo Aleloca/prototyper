@@ -77,7 +77,7 @@ export interface ProjectSummary {
 }
 
 export interface ProjectDetail extends ProjectSummary {
-  versions: { id: number; number: number; changelog: string; publishedAt: string; publishedBy: string | null; previewUrl: string | null }[];
+  versions: { id: number; number: number; changelog: string; publishedAt: string; publishedBy: string | null; previewUrl: string | null; commit: string | null; source: string | null }[];
   rounds: RoundSummary[];
 }
 

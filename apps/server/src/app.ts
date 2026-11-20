@@ -8,6 +8,8 @@ import { Ctx, type ServerConfig } from "./context.js";
 import { Store } from "./db.js";
 import { DomainManager } from "./domains.js";
 import { Thumbnails } from "./thumbnails.js";
+import { GitRepos } from "./git.js";
+import { gitRoutes } from "./routes/git.js";
 import { apiRoutes } from "./routes/api.js";
 import { oauthRoutes } from "./routes/oauth.js";
 import { panelRoutes } from "./routes/panel.js";
@@ -64,7 +66,10 @@ export async function buildApp(config: ServerConfig): Promise<{ app: FastifyInst
     app.addHook("onClose", async () => thumbs.close());
   }
 
+  if (config.git !== false) ctx.git = new GitRepos(join(config.dataDir, "git"), app.log);
+
   await panelRoutes(app, ctx);
+  await gitRoutes(app, ctx);
   await oauthRoutes(app, ctx);
   await apiRoutes(app, ctx);
   await reviewRoutes(app, ctx);

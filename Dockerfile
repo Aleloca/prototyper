@@ -33,9 +33,9 @@ ENV NODE_ENV=production \
     PORT=3700
 WORKDIR /app
 COPY --from=build /src/apps/server/dist/package.json ./
-# sharp, and a headless Chromium (with its system libraries) for the project thumbnails.
+# git (project sources), sharp, and a headless Chromium (with its system libraries) for the project thumbnails.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates \
+ && apt-get install -y --no-install-recommends ca-certificates git \
  && npm install --omit=dev --no-audit --no-fund --loglevel=error \
  && npx --no-install playwright-core install --with-deps --only-shell chromium \
  && rm -rf /var/lib/apt/lists/* /root/.npm /tmp/*

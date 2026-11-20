@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { api, type ContentValue, type Feedback, type ProjectDetail } from "../api";
-import { ArrowLeft, ArrowRight, ExternalLink, Eye, Laptop, Link2, Link2Off, Maximize2, RefreshCw, Smartphone, Tablet, Trash2, X } from "../components/icons";
+import { ArrowLeft, ArrowRight, Download, ExternalLink, Eye, Laptop, Link2, Link2Off, Maximize2, RefreshCw, Smartphone, Tablet, Trash2, X } from "../components/icons";
 import { Modal } from "../components/Modal";
 import { CopyButton, ErrorText, Mark, StateLabel, Spinner, Tag, roundState, swatchCode, type MarkKind } from "../components/ui";
 import { errorMessage, formatDate, timeAgo } from "../format";
@@ -350,6 +350,12 @@ function Versions({ project: p, spot }: { project: ProjectDetail; spot: Spot }) 
               <a className="inline-flex items-center gap-1.5 self-start font-medium text-ink underline underline-offset-3" href={v.previewUrl} target="_blank" rel="noreferrer">
                 {t("Open this version")}
                 <ExternalLink aria-hidden className="size-3.5" />
+              </a>
+            )}
+            {v.source && (
+              <a className="inline-flex items-center gap-1.5 self-start font-medium text-ink underline underline-offset-3" href={v.source} download>
+                {t("Download the code")}
+                <Download aria-hidden className="size-3.5" />
               </a>
             )}
           </>

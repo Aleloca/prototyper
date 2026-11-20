@@ -9,6 +9,7 @@ import { lintDemo, readSite, type ContentEntry, type LintIssue } from "@prototyp
 import type { CommentRow, CommentStatus, ProjectRow, RoundRow, Store, UserRow, VersionRow } from "./db.js";
 import { SecretBox } from "./security.js";
 import type { Thumbnails } from "./thumbnails.js";
+import type { GitRepos } from "./git.js";
 
 export interface ServerConfig {
   dataDir: string;
@@ -28,6 +29,8 @@ export interface ServerConfig {
   thumbnails?: boolean;
   /** Development only: serve everything over plain http on this port (URLs become http://host:port). */
   devPort?: number;
+  /** Keep each project's sources in an internal git repository (default on; needs git on the server). */
+  git?: boolean;
   /** Standalone mode: the app itself serves HTTPS with these options (certificates picked by SNI). */
   https?: import("node:https").ServerOptions;
 }
@@ -50,6 +53,8 @@ export class Ctx {
   readonly box: SecretBox;
   /** Screenshots for the panel's cards (absent in tests and when disabled). */
   thumbnails: Thumbnails | undefined;
+  /** Project sources (internal git); absent when git isn't installed. */
+  git: GitRepos | undefined;
   private readonly contentCache = new Map<number, Map<string, ContentEntry>>();
 
   constructor(
@@ -181,6 +186,8 @@ export class Ctx {
           publishedAt: v.published_at,
           publishedBy: this.store.user(v.published_by)?.name || this.store.user(v.published_by)?.email || null,
           previewUrl: this.versionPreviewUrl(p, v),
+          commit: v.commit_sha,
+          source: v.commit_sha ? `/api/panel/versions/${v.id}/source.zip` : null,
         })),
       rounds: this.store
         .rounds(p.id)
@@ -240,7 +247,10 @@ export class Ctx {
    * Publish a new version of a project from a tar.gz of the built site, point the review link to it
    * (creating the link the first time) and open a new review round.
    */
-  async publishVersion(user: UserRow, project: ProjectRow, tarball: Buffer, changelog: string) {
+  async publishVersion(user: UserRow, project: ProjectRow, tarball: Buffer, changelog: string, commit?: string) {
+    if (commit && !(this.git && (await this.git.onMain(project.id, commit)))) {
+      throw httpError(400, "commit_not_pushed: push the sources to the project's git before publishing this commit");
+    }
     if (!project.domain_id) {
       const domainId = this.pickDomain(project.workspace_id);
       if (!domainId) throw httpError(409, "no_preview_domain");
@@ -263,14 +273,15 @@ export class Ctx {
       throw e;
     }
     const version = this.store.transaction(() => {
-      const v = this.store.addVersion(project.id, number, changelog, dir, user.id);
+      const v = this.store.addVersion(project.id, number, changelog, dir, user.id, commit ?? null);
       const share = this.store.shareForProject(project.id);
       if (share) this.store.updateShare(share.token, { versionId: v.id });
       else this.store.createShare(randomBytes(32).toString("base64url"), project.id, v.id);
       this.store.openRound(project.id, v.id);
       return v;
     });
-    this.store.audit(user.id, "version.publish", { project: project.id, number });
+    this.store.audit(user.id, "version.publish", { project: project.id, number, ...(commit ? { commit } : {}) });
+    if (commit) await this.git?.tag(project.id, number, commit).catch(() => {});
     this.thumbnails?.request(version.id);
     return {
       version: { id: version.id, number: version.number, publishedAt: version.published_at },
@@ -291,6 +302,7 @@ export class Ctx {
     this.store.deleteProject(project.id);
     this.store.deleteClientIfEmpty(project.client_id);
     await rm(join(this.config.dataDir, "projects", project.id), { recursive: true, force: true });
+    await this.git?.remove(project.id);
     for (const u of uploads) await rm(u.file, { force: true });
     this.store.audit(user.id, "project.delete", { project: project.id, name: project.name });
   }
