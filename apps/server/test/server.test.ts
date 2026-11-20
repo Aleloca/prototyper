@@ -7,13 +7,22 @@ import * as tar from "tar";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../src/app";
+import type { Store } from "../src/db";
+import { hashPassword, randomToken, sha256, totpCode, totpStep } from "../src/security";
+import type { Ctx } from "../src/context";
 
-const ADMIN = "x".repeat(40);
-const auth = { authorization: `Bearer ${ADMIN}` };
+const PANEL = "panel.example.com";
+const ORIGIN = `https://${PANEL}`;
 const HOST = "preview.example.com";
+const SECRET = "s".repeat(40);
 
 let dir: string;
 let app: FastifyInstance;
+let store: Store;
+let ctx: Ctx;
+let ws: string;
+let token: string; // API token of a member of `ws` with 2FA
+let auth: Record<string, string>;
 
 const PAGE = `<!doctype html><html lang="it"><head><title>T</title></head><body>
 <h1 data-pt="home.hero.title">Ciao</h1>
@@ -35,26 +44,73 @@ async function siteTarball(pages: Record<string, string>): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
+const api = (method: "GET" | "POST" | "PATCH", url: string, payload?: unknown, headers: Record<string, string> = auth) =>
+  app.inject({ method, url, headers: { host: PANEL, ...headers }, ...(payload !== undefined ? { payload: payload as object } : {}) });
+
+async function createProject(name = "Demo", workspaceId = ws): Promise<string> {
+  const r = await api("POST", "/api/v1/projects", { workspaceId, client: "Studio Rossi", name });
+  expect(r.statusCode, r.body).toBe(200);
+  return (r.json() as { id: string }).id;
+}
+
+/** Publish a version through the MCP API; returns the review token. */
 async function publish(projectId: string, number: number, pages: Record<string, string> = { "index.html": PAGE, "assets/a.svg": "<svg/>" }) {
-  await app.inject({ method: "PUT", url: `/api/admin/projects/${projectId}`, headers: auth, payload: { name: "Demo" } });
   const v = await app.inject({
     method: "POST",
-    url: `/api/admin/projects/${projectId}/versions?number=${number}&changelog=${encodeURIComponent(`v${number} notes`)}`,
-    headers: { ...auth, "content-type": "application/gzip" },
+    url: `/api/v1/projects/${projectId}/versions?changelog=${encodeURIComponent(`v${number} notes`)}`,
+    headers: { ...auth, host: PANEL, "content-type": "application/gzip" },
     payload: await siteTarball(pages),
   });
   expect(v.statusCode, v.body).toBe(200);
-  const s = await app.inject({ method: "PUT", url: `/api/admin/projects/${projectId}/share`, headers: auth, payload: { host: HOST } });
-  expect(s.statusCode, s.body).toBe(200);
-  return s.json() as { token: string };
+  const body = v.json() as { url: string; version: { number: number } };
+  expect(body.version.number).toBe(number);
+  return { token: /\/s\/([\w-]+)\//.exec(body.url)![1]!, url: body.url };
 }
 
 const pub = (method: "GET" | "PUT" | "POST" | "PATCH" | "DELETE", url: string, payload?: unknown, host = HOST) =>
   app.inject({ method, url, headers: { host }, ...(payload !== undefined ? { payload: payload as object } : {}) });
 
+/** A user with password "password-123" and optionally 2FA; returns the TOTP secret. */
+async function makeUser(email: string, opts: { admin?: boolean; totp?: boolean; workspace?: string } = {}) {
+  const id = randomUUID();
+  store.createUser({ id, email, name: email.split("@")[0]!, isAdmin: opts.admin ?? false });
+  const secret = "JBSWY3DPEHPK3PXP";
+  store.updateUser(id, { password_hash: await hashPassword("password-123"), ...(opts.totp ? { totp_secret: ctx.box.seal(secret), totp_enabled: 1 } : {}) });
+  if (opts.workspace) store.addMember(opts.workspace, id);
+  return { id, secret };
+}
+
+function apiToken(userId: string): string {
+  const t = randomToken();
+  store.createApiToken({ id: randomUUID(), user_id: userId, name: "test", token_hash: sha256(t), expires_at: new Date(Date.now() + 86_400_000).toISOString() });
+  return t;
+}
+
+/** Sign in to the panel; returns the cookie header. */
+async function login(email: string, secret?: string): Promise<string> {
+  const r = await app.inject({ method: "POST", url: "/api/panel/login", headers: { host: PANEL, origin: ORIGIN }, payload: { email, password: "password-123" } });
+  expect(r.statusCode, r.body).toBe(200);
+  let cookie = String(r.headers["set-cookie"]).split(";")[0]!;
+  if ((r.json() as { mfaRequired?: boolean }).mfaRequired) {
+    const m = await app.inject({ method: "POST", url: "/api/panel/login/mfa", headers: { host: PANEL, origin: ORIGIN, cookie }, payload: { code: totpCode(secret!, totpStep()) } });
+    expect(m.statusCode, m.body).toBe(200);
+    cookie = String(m.headers["set-cookie"]).split(";")[0]!;
+  }
+  return cookie;
+}
+
+const panel = (cookie: string) => (method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE", url: string, payload?: unknown) =>
+  app.inject({ method, url, headers: { host: PANEL, origin: ORIGIN, cookie }, ...(payload !== undefined ? { payload: payload as object } : {}) });
+
 beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), "pt-server-"));
-  ({ app } = await buildApp({ dataDir: dir, adminToken: ADMIN, overlayJs: "/*overlay*/" }));
+  ({ app, store, ctx } = await buildApp({ dataDir: dir, secretKey: SECRET, panelHost: PANEL, overlayJs: "/*overlay*/" }));
+  ws = store.createWorkspace(randomUUID(), "Agency").id;
+  const d = store.createDomain(randomUUID(), ws, HOST);
+  store.updateDomain(d.id, { status: "active" });
+  const member = await makeUser("dev@example.com", { totp: true, workspace: ws });
+  token = apiToken(member.id);
+  auth = { authorization: `Bearer ${token}` };
 });
 
 afterEach(async () => {
@@ -62,17 +118,9 @@ afterEach(async () => {
   await rm(dir, { recursive: true, force: true });
 });
 
-describe("admin auth", () => {
-  it("rejects missing or wrong tokens", async () => {
-    expect((await app.inject({ url: "/api/admin/health" })).statusCode).toBe(401);
-    expect((await app.inject({ url: "/api/admin/health", headers: { authorization: "Bearer nope" } })).statusCode).toBe(401);
-    expect((await app.inject({ url: "/api/admin/health", headers: auth })).json()).toEqual({ ok: true });
-  });
-});
-
 describe("review round", () => {
   it("serves the demo, stores edits, uploads, comments and submission", async () => {
-    const id = randomUUID();
+    const id = await createProject();
     const { token } = await publish(id, 1);
 
     const page = await pub("GET", `/s/${token}/`);
@@ -122,15 +170,15 @@ describe("review round", () => {
 
     expect((await pub("POST", `/s/${token}/__pt/submit`, { author: "Anna" })).json().status).toBe("submitted");
 
-    // The app reads the feedback, then closes the round with replies.
-    const rounds = (await app.inject({ url: `/api/admin/projects/${id}/rounds`, headers: auth })).json();
-    expect(rounds).toMatchObject([{ status: "submitted", edits: 3, comments: 1, versionNumber: 1 }]);
-    const fb = (await app.inject({ url: `/api/admin/rounds/${rounds[0].id}/feedback`, headers: auth })).json();
+    // Claude (through the MCP API) reads the feedback, then closes the round with replies.
+    const detail = (await api("GET", `/api/v1/projects/${id}`)).json();
+    expect(detail.rounds).toMatchObject([{ status: "submitted", edits: 3, comments: 1, versionNumber: 1 }]);
+    const fb = (await api("GET", `/api/v1/projects/${id}/feedback`)).json();
     expect(fb.edits.find((e: { key: string }) => e.key === "home.hero.title")).toMatchObject({ before: { kind: "text", text: "Ciao" }, value: { kind: "text", text: "Benvenuti" }, author: "Anna" });
-    expect(fb.uploads).toHaveLength(1);
-    expect((await app.inject({ url: `/api/admin/uploads/${upload.id}`, headers: auth })).statusCode).toBe(200);
+    expect(fb.uploads).toMatchObject([{ id: upload.id, url: `/api/v1/uploads/${upload.id}` }]);
+    expect((await api("GET", `/api/v1/uploads/${upload.id}`)).statusCode).toBe(200);
 
-    await app.inject({ method: "POST", url: `/api/admin/rounds/${rounds[0].id}/imported`, headers: auth, payload: { replies: { [commentId]: { status: "resolved", reply: "Fatto!" } } } });
+    expect((await api("POST", `/api/v1/rounds/${fb.round.id}/imported`, { replies: { [commentId]: { status: "resolved", reply: "Fatto!" } } })).statusCode).toBe(200);
     expect((await pub("GET", `/s/${token}/__pt/state`)).json().editable).toBe(false);
     expect((await pub("PUT", `/s/${token}/__pt/edits/home.hero.title`, { value: { kind: "text", text: "x" }, page: "index.html", author: "A" })).statusCode).toBe(409);
 
@@ -146,22 +194,28 @@ describe("review round", () => {
 
 describe("access control", () => {
   it("hides shares on other hosts, revoked shares and path traversal", async () => {
-    const { token } = await publish(randomUUID(), 1);
+    const id = await createProject();
+    const { token } = await publish(id, 1);
+    const admin = await makeUser("boss@example.com", { admin: true });
+    const as = panel(await login("boss@example.com"));
+    void admin;
     expect((await pub("GET", `/s/${token}/`, undefined, "other.example.com")).statusCode).toBe(404);
     expect((await pub("GET", `/s/${token}/..%2F..%2Fprototyper.db`)).statusCode).toBe(404);
     expect((await pub("GET", `/s/not-a-token/`)).statusCode).toBe(404);
 
-    await app.inject({ method: "PATCH", url: `/api/admin/shares/${token}`, headers: auth, payload: { status: "readonly" } });
+    expect((await as("PATCH", `/api/panel/projects/${id}/share`, { status: "readonly" })).statusCode).toBe(200);
     expect((await pub("GET", `/s/${token}/__pt/state`)).json()).toMatchObject({ editable: false, shareStatus: "readonly" });
     expect((await pub("POST", `/s/${token}/__pt/comments`, { page: "index.html", anchor: { x: 0, y: 0 }, text: "x", author: "A" })).statusCode).toBe(409);
 
-    await app.inject({ method: "PATCH", url: `/api/admin/shares/${token}`, headers: auth, payload: { status: "revoked" } });
+    // Review links are never served on the panel host.
+    expect((await pub("GET", `/s/${token}/`, undefined, PANEL)).statusCode).toBe(404);
+    expect((await as("PATCH", `/api/panel/projects/${id}/share`, { status: "revoked" })).statusCode).toBe(200);
     expect((await pub("GET", `/s/${token}/`)).statusCode).toBe(404);
   });
 
   it("does not leak uploads across projects", async () => {
-    const a = await publish(randomUUID(), 1);
-    const b = await publish(randomUUID(), 1);
+    const a = await publish(await createProject("A"), 1);
+    const b = await publish(await createProject("B"), 1);
     const png = await sharp({ create: { width: 10, height: 10, channels: 3, background: "#000" } }).png().toBuffer();
     const boundary = "----pt";
     const body = Buffer.concat([
@@ -175,9 +229,140 @@ describe("access control", () => {
   });
 
   it("rejects tarballs without index.html", async () => {
-    const id = randomUUID();
-    await app.inject({ method: "PUT", url: `/api/admin/projects/${id}`, headers: auth, payload: { name: "Demo" } });
-    const r = await app.inject({ method: "POST", url: `/api/admin/projects/${id}/versions?number=1`, headers: { ...auth, "content-type": "application/gzip" }, payload: await siteTarball({ "about.html": PAGE }) });
+    const id = await createProject();
+    const r = await app.inject({ method: "POST", url: `/api/v1/projects/${id}/versions`, headers: { ...auth, host: PANEL, "content-type": "application/gzip" }, payload: await siteTarball({ "about.html": PAGE }) });
     expect(r.statusCode).toBe(400);
+  });
+});
+
+describe("panel sign-in", () => {
+  it("signs in with password, then TOTP when 2FA is on, and refuses replays", async () => {
+    const { secret } = await makeUser("anna@example.com", { totp: true, workspace: ws });
+    const wrong = await app.inject({ method: "POST", url: "/api/panel/login", headers: { host: PANEL, origin: ORIGIN }, payload: { email: "anna@example.com", password: "nope-nope-nope" } });
+    expect(wrong.statusCode).toBe(401);
+
+    const r = await app.inject({ method: "POST", url: "/api/panel/login", headers: { host: PANEL, origin: ORIGIN }, payload: { email: "ANNA@example.com", password: "password-123" } });
+    expect(r.json()).toEqual({ mfaRequired: true });
+    const pending = String(r.headers["set-cookie"]).split(";")[0]!;
+    // Half-signed-in sessions can't use the API.
+    expect((await panel(pending)("GET", "/api/panel/me")).statusCode).toBe(401);
+    expect((await panel(pending)("POST", "/api/panel/login/mfa", { code: "000000" })).statusCode).toBe(401);
+    const code = totpCode(secret, totpStep());
+    const ok = await panel(pending)("POST", "/api/panel/login/mfa", { code });
+    expect(ok.statusCode, ok.body).toBe(200);
+    const cookie = String(ok.headers["set-cookie"]).split(";")[0]!;
+    expect(cookie).not.toBe(pending);
+    expect((await panel(cookie)("GET", "/api/panel/me")).json()).toMatchObject({ user: { email: "anna@example.com", totpEnabled: true }, workspaces: [{ id: ws, name: "Agency" }] });
+
+    // The same code can't be used twice.
+    const again = await app.inject({ method: "POST", url: "/api/panel/login", headers: { host: PANEL, origin: ORIGIN }, payload: { email: "anna@example.com", password: "password-123" } });
+    const c2 = String(again.headers["set-cookie"]).split(";")[0]!;
+    expect((await panel(c2)("POST", "/api/panel/login/mfa", { code })).statusCode).toBe(401);
+  });
+
+  it("locks an account after repeated failures", async () => {
+    await makeUser("lock@example.com");
+    for (let i = 0; i < 5; i++) {
+      await app.inject({ method: "POST", url: "/api/panel/login", headers: { host: PANEL, origin: ORIGIN }, payload: { email: "lock@example.com", password: "wrong-wrong" } });
+    }
+    const r = await app.inject({ method: "POST", url: "/api/panel/login", headers: { host: PANEL, origin: ORIGIN }, payload: { email: "lock@example.com", password: "password-123" } });
+    expect(r.statusCode).toBe(429);
+  });
+
+  it("refuses cross-site requests and the panel API on preview hosts", async () => {
+    await makeUser("x@example.com");
+    const cookie = await login("x@example.com");
+    const evil = await app.inject({ method: "PUT", url: "/api/panel/me", headers: { host: PANEL, origin: "https://evil.example", cookie }, payload: { name: "x" } });
+    expect(evil.statusCode).toBe(403);
+    const noOrigin = await app.inject({ method: "PUT", url: "/api/panel/me", headers: { host: PANEL, cookie }, payload: { name: "x" } });
+    expect(noOrigin.statusCode).toBe(403);
+    expect((await app.inject({ url: "/api/panel/me", headers: { host: HOST, cookie } })).statusCode).toBe(404);
+    expect((await app.inject({ url: "/api/v1/me", headers: { host: HOST, ...auth } })).statusCode).toBe(404);
+  });
+
+  it("enables and disables 2FA; disabling revokes MCP tokens", async () => {
+    const { id } = await makeUser("t@example.com", { workspace: ws });
+    const as = panel(await login("t@example.com"));
+    const setup = await as("POST", "/api/panel/me/2fa/setup", { password: "password-123" });
+    expect(setup.statusCode, setup.body).toBe(200);
+    const { secret, otpauthUrl } = setup.json() as { secret: string; otpauthUrl: string };
+    expect(otpauthUrl).toContain(`secret=${secret}`);
+    expect((await as("POST", "/api/panel/me/2fa/enable", { code: "123456" })).statusCode).toBe(400);
+    expect((await as("POST", "/api/panel/me/2fa/enable", { code: totpCode(secret, totpStep()) })).json()).toMatchObject({ user: { totpEnabled: true } });
+
+    const t = apiToken(id);
+    expect((await api("GET", "/api/v1/me", undefined, { authorization: `Bearer ${t}` })).statusCode).toBe(200);
+    expect((await as("GET", "/api/panel/me/tokens")).json()).toHaveLength(1);
+    const off = await as("POST", "/api/panel/me/2fa/disable", { password: "password-123", code: totpCode(secret, totpStep() + 1) });
+    expect(off.statusCode, off.body).toBe(200);
+    expect((await api("GET", "/api/v1/me", undefined, { authorization: `Bearer ${t}` })).statusCode).toBe(401);
+  });
+});
+
+describe("admin and workspaces", () => {
+  it("invites users, who set their password and see only their workspaces", async () => {
+    await makeUser("boss@example.com", { admin: true });
+    const boss = panel(await login("boss@example.com"));
+    const other = (await boss("POST", "/api/panel/admin/workspaces", { name: "Other" })).json() as { id: string };
+
+    const created = await boss("POST", "/api/panel/admin/users", { email: "New@Example.com", workspaceIds: [other.id] });
+    expect(created.statusCode, created.body).toBe(200);
+    const { inviteUrl } = created.json() as { inviteUrl: string };
+    expect(inviteUrl.startsWith(`${ORIGIN}/invite/`)).toBe(true);
+    const inviteToken = inviteUrl.split("/").at(-1)!;
+
+    const anon = panel("");
+    expect((await anon("GET", `/api/panel/invites/${inviteToken}`)).json()).toMatchObject({ email: "new@example.com", reset: false });
+    expect((await anon("POST", `/api/panel/invites/${inviteToken}`, { name: "Nuovo", password: "short" })).statusCode).toBe(400);
+    expect((await anon("POST", `/api/panel/invites/${inviteToken}`, { name: "Nuovo", password: "password-123" })).statusCode).toBe(200);
+    expect((await anon("GET", `/api/panel/invites/${inviteToken}`)).statusCode).toBe(404);
+
+    // The new member sees "Other" only; "Agency" (where the demo project is) stays hidden.
+    const projectId = await createProject();
+    const nu = panel(await login("new@example.com"));
+    expect((await nu("GET", "/api/panel/me")).json().workspaces).toEqual([{ id: other.id, name: "Other" }]);
+    expect((await nu("GET", `/api/panel/workspaces/${ws}`)).statusCode).toBe(404);
+    expect((await nu("GET", `/api/panel/projects/${projectId}`)).statusCode).toBe(404);
+    expect((await nu("GET", "/api/panel/admin/users")).statusCode).toBe(403);
+
+    // Admins see every workspace and can add the member to it.
+    expect((await boss("GET", `/api/panel/workspaces/${ws}`)).json().projects).toHaveLength(1);
+    const newId = (created.json() as { user: { id: string } }).user.id;
+    expect((await boss("PUT", `/api/panel/admin/workspaces/${ws}/members/${newId}`)).statusCode).toBe(200);
+    expect((await nu("GET", `/api/panel/projects/${projectId}`)).json()).toMatchObject({ name: "Demo", client: { name: "Studio Rossi" } });
+
+    // Disabling a user ends their sessions.
+    expect((await boss("PATCH", `/api/panel/admin/users/${newId}`, { disabled: true })).statusCode).toBe(200);
+    expect((await nu("GET", "/api/panel/me")).statusCode).toBe(401);
+  });
+
+  it("scopes the MCP API to the user's workspaces", async () => {
+    const other = store.createWorkspace(randomUUID(), "Other").id;
+    const r = await api("POST", "/api/v1/projects", { workspaceId: other, client: "X", name: "Y" });
+    expect(r.statusCode).toBe(404);
+    const me = (await api("GET", "/api/v1/me")).json();
+    expect(me.workspaces).toMatchObject([{ id: ws, name: "Agency", domains: [{ hostname: HOST }] }]);
+    expect((await api("GET", "/api/v1/me", undefined, { authorization: "Bearer nope" })).statusCode).toBe(401);
+  });
+
+  it("refuses to publish without an active preview domain, and serves signed version previews", async () => {
+    const bare = store.createWorkspace(randomUUID(), "Bare").id;
+    const { id: uid } = await makeUser("b@example.com", { totp: true, workspace: bare });
+    const h = { authorization: `Bearer ${apiToken(uid)}` };
+    const p = (await api("POST", "/api/v1/projects", { workspaceId: bare, client: "C", name: "P" }, h)).json() as { id: string };
+    const v = await app.inject({ method: "POST", url: `/api/v1/projects/${p.id}/versions`, headers: { ...h, host: PANEL, "content-type": "application/gzip" }, payload: await siteTarball({ "index.html": PAGE }) });
+    expect(v.statusCode).toBe(409);
+
+    const id = await createProject();
+    await publish(id, 1);
+    await publish(id, 2, { "index.html": PAGE.replace("Ciao", "Hello") });
+    const detail = (await api("GET", `/api/v1/projects/${id}`)).json() as { versions: { number: number; previewUrl: string }[] };
+    const v1 = new URL(detail.versions.find((x) => x.number === 1)!.previewUrl);
+    expect(v1.host).toBe(HOST);
+    const page = await pub("GET", v1.pathname);
+    expect(page.statusCode).toBe(200);
+    expect(page.body).toContain(">Ciao</h1>");
+    expect(page.body).not.toContain("review.js");
+    expect((await pub("GET", v1.pathname.replace(/\.[\w-]+\/$/, ".forged/"))).statusCode).toBe(404);
   });
 });
