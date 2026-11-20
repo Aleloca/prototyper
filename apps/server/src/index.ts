@@ -29,6 +29,9 @@ const { app, store, ctx } = await buildApp({
   panelDir: process.env.PANEL_DIR ?? join(here, "panel"),
   trustProxy: env("TRUST_PROXY", "false") === "true",
   ...(process.env.DEV_HTTP === "true" ? { devPort: Number(env("PORT", "3700")) } : {}),
+  ...(process.env.CERTS_DIR
+    ? { acme: { certsDir: process.env.CERTS_DIR, staging: process.env.ACME_STAGING === "true", ...(process.env.ACME_EMAIL ? { email: process.env.ACME_EMAIL } : {}) } }
+    : {}),
   logger: process.argv[2] === undefined,
 });
 

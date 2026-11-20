@@ -4,12 +4,28 @@ import { api, type Me } from "../api";
 import { Badge, ErrorText, Section } from "../components/ui";
 import { errorMessage, formatDate, timeAgo } from "../format";
 import { useT } from "../i18n";
+import { Link } from "../router";
+import { PENDING_AUTHORIZE } from "./Authorize";
 
 export function Account({ me, onChange }: { me: Me; onChange: () => void }) {
   const t = useT();
+  let pending: string | null = null;
+  try {
+    pending = sessionStorage.getItem(PENDING_AUTHORIZE);
+  } catch {
+    /* ignore */
+  }
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-5">
       <h1 className="text-[22px] font-semibold">{t("Account")}</h1>
+      {pending && me.user.totpEnabled && (
+        <div className="flex items-center gap-3 rounded-lg border border-accent/30 bg-accent-soft px-4 py-3">
+          <span className="flex-1">{t("Two-factor authentication is on. You can now connect Claude Code.")}</span>
+          <Link to={pending} className="btn btn-primary">
+            {t("Continue")}
+          </Link>
+        </div>
+      )}
       <Profile me={me} onChange={onChange} />
       <TwoFactor me={me} onChange={onChange} />
       <Tokens />

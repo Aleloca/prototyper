@@ -1,0 +1,12 @@
+{
+  "name": "prototyper",
+  "owner": { "name": "Aleloca" },
+  "description": "Prototyper: client review links for website prototypes, driven from Claude Code.",
+  "plugins": [
+    {
+      "name": "prototyper",
+      "source": "./plugin",
+      "description": "Publish prototypes for client review and apply their edits and notes."
+    }
+  ]
+}

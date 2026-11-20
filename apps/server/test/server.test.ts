@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -364,5 +364,52 @@ describe("admin and workspaces", () => {
     expect(page.body).toContain(">Ciao</h1>");
     expect(page.body).not.toContain("review.js");
     expect((await pub("GET", v1.pathname.replace(/\.[\w-]+\/$/, ".forged/"))).statusCode).toBe(404);
+  });
+});
+
+describe("MCP login (OAuth + PKCE + 2FA)", () => {
+  const verifier = "v".repeat(20) + randomToken();
+  const challenge = () => createHash("sha256").update(verifier).digest("base64url");
+  const redirectUri = "http://127.0.0.1:53111/callback";
+
+  it("issues a token only with a fresh TOTP code, a loopback redirect and the right verifier", async () => {
+    const { id: uid, secret } = await makeUser("mcp@example.com", { totp: true, workspace: ws });
+    const as = panel(await login("mcp@example.com", secret));
+    const base = { redirectUri, codeChallenge: challenge(), state: "xyz", clientName: "Claude Code on test-mac" };
+
+    expect((await as("POST", "/api/panel/oauth/authorize", { ...base, redirectUri: "https://evil.example/callback", code: totpCode(secret, totpStep() + 1) })).statusCode).toBe(400);
+    expect((await as("POST", "/api/panel/oauth/authorize", { ...base, code: "000000" })).statusCode).toBe(400);
+    // Without a session: refused.
+    expect((await panel("")("POST", "/api/panel/oauth/authorize", { ...base, code: totpCode(secret, totpStep() + 1) })).statusCode).toBe(401);
+
+    const ok = await as("POST", "/api/panel/oauth/authorize", { ...base, code: totpCode(secret, totpStep() + 1) });
+    expect(ok.statusCode, ok.body).toBe(200);
+    const target = new URL((ok.json() as { redirect: string }).redirect);
+    expect(target.origin + target.pathname).toBe(redirectUri);
+    expect(target.searchParams.get("state")).toBe("xyz");
+    const code = target.searchParams.get("code")!;
+
+    const exchange = (payload: object) => app.inject({ method: "POST", url: "/oauth/token", headers: { host: PANEL }, payload });
+    expect((await exchange({ grant_type: "authorization_code", code, code_verifier: "w".repeat(43), redirect_uri: redirectUri })).statusCode).toBe(400);
+    // The wrong verifier burned the code: codes are single-use.
+    expect((await exchange({ grant_type: "authorization_code", code, code_verifier: verifier, redirect_uri: redirectUri })).statusCode).toBe(400);
+
+    // (Codes can't be reused: pretend time passed.)
+    store.updateUser(uid, { totp_last_step: 0 });
+    const ok2 = await as("POST", "/api/panel/oauth/authorize", { ...base, code: totpCode(secret, totpStep()) });
+    const code2 = new URL((ok2.json() as { redirect: string }).redirect).searchParams.get("code")!;
+    const tok = await exchange({ grant_type: "authorization_code", code: code2, code_verifier: verifier, redirect_uri: redirectUri });
+    expect(tok.statusCode, tok.body).toBe(200);
+    const accessToken = (tok.json() as { access_token: string }).access_token;
+    const me = await api("GET", "/api/v1/me", undefined, { authorization: `Bearer ${accessToken}` });
+    expect(me.json()).toMatchObject({ user: { email: "mcp@example.com" } });
+    expect((await as("GET", "/api/panel/me/tokens")).json()).toMatchObject([{ name: "Claude Code on test-mac" }]);
+  });
+
+  it("requires 2FA to be on", async () => {
+    await makeUser("no2fa@example.com", { workspace: ws });
+    const as = panel(await login("no2fa@example.com"));
+    const r = await as("POST", "/api/panel/oauth/authorize", { redirectUri, codeChallenge: challenge(), state: "s", clientName: "x", code: "123456" });
+    expect(r.statusCode).toBe(403);
   });
 });

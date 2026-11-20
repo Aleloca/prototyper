@@ -6,7 +6,9 @@ import rateLimit from "@fastify/rate-limit";
 import { z } from "zod";
 import { Ctx, type ServerConfig } from "./context.js";
 import { Store } from "./db.js";
+import { DomainManager } from "./domains.js";
 import { apiRoutes } from "./routes/api.js";
+import { oauthRoutes } from "./routes/oauth.js";
 import { panelRoutes } from "./routes/panel.js";
 import { panelStatic } from "./routes/static.js";
 import { reviewRoutes } from "./routes/review.js";
@@ -45,7 +47,16 @@ export async function buildApp(config: ServerConfig): Promise<{ app: FastifyInst
     return reply.code(code).send({ error: code >= 500 ? "internal_error" : err.message });
   });
 
+  if (config.acme) {
+    const domains = new DomainManager(ctx, { ...config.acme, log: app.log });
+    app.decorate("domains", domains);
+    domains.routes(app);
+    app.addHook("onReady", async () => domains.start());
+    app.addHook("onClose", async () => domains.stop());
+  }
+
   await panelRoutes(app, ctx);
+  await oauthRoutes(app, ctx);
   await apiRoutes(app, ctx);
   await reviewRoutes(app, ctx);
 

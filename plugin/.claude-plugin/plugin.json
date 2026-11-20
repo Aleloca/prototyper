@@ -1,0 +1,10 @@
+{
+  "name": "prototyper",
+  "version": "0.1.0",
+  "description": "Publish website prototypes for client review on your Prototyper server, then apply the client's edits and notes from Claude Code.",
+  "author": { "name": "Aleloca" },
+  "homepage": "https://github.com/Aleloca/prototyper",
+  "repository": "https://github.com/Aleloca/prototyper",
+  "license": "MIT",
+  "keywords": ["prototype", "client review", "feedback", "landing page"]
+}

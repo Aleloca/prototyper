@@ -20,6 +20,8 @@ export interface ServerConfig {
   panelDir?: string;
   trustProxy?: boolean;
   logger?: boolean;
+  /** Automatic certificates for preview domains (production). Absent: domains are activated by hand. */
+  acme?: { certsDir: string; staging?: boolean; email?: string };
   /** Development only: serve everything over plain http on this port (URLs become http://host:port). */
   devPort?: number;
 }

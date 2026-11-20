@@ -1,0 +1,20 @@
+{
+  "name": "@prototyper/mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Prototyper MCP server for Claude Code: publish prototypes and apply client feedback",
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "@prototyper/shared": "workspace:*",
+    "tar": "^7.5.23",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
+}

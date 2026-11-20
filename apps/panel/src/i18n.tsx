@@ -189,6 +189,27 @@ const IT: Record<string, string> = {
   Active: "Attivo",
   "Getting the certificate…": "Richiesta del certificato…",
   Error: "Errore",
+  // MCP authorization
+  "Invalid request": "Richiesta non valida",
+  "This authorization link is incomplete. Start the login again from Claude Code.": "Questo link di autorizzazione è incompleto. Rifai il login da Claude Code.",
+  "Turn on two-factor authentication": "Attiva l'autenticazione a due fattori",
+  "Connecting Claude Code requires two-factor authentication. Turn it on in your account, then come back here.":
+    "Per collegare Claude Code serve l'autenticazione a due fattori. Attivala nel tuo account, poi torna qui.",
+  "Go to Account": "Vai all'account",
+  "Claude Code is connected": "Claude Code è collegato",
+  "Request denied": "Richiesta rifiutata",
+  "You can close this tab and go back to the terminal.": "Puoi chiudere questa scheda e tornare al terminale.",
+  "Nothing was shared. You can close this tab.": "Non è stato condiviso niente. Puoi chiudere questa scheda.",
+  "Connect Claude Code": "Collega Claude Code",
+  "{client} wants to use Prototyper as you: publish projects and read client feedback in your workspaces.":
+    "{client} vuole usare Prototyper come te: pubblicare progetti e leggere il feedback dei clienti nelle tue workspace.",
+  "Code from your authenticator app": "Codice dalla tua app di autenticazione",
+  Authorize: "Autorizza",
+  Deny: "Rifiuta",
+  "You can disconnect it anytime from Account.": "Puoi scollegarlo quando vuoi dall'account.",
+  "Two-factor authentication is on. You can now connect Claude Code.": "L'autenticazione a due fattori è attiva. Ora puoi collegare Claude Code.",
+  "Turn on two-factor authentication first.": "Prima attiva l'autenticazione a due fattori.",
+  "Invalid redirect address.": "Indirizzo di ritorno non valido.",
   // Server messages
   "Wrong email or password.": "Email o password sbagliate.",
   "Too many attempts. Try again in a few minutes.": "Troppi tentativi. Riprova tra qualche minuto.",
